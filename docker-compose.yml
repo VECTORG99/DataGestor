@@ -1,0 +1,40 @@
+# Docker Compose - Entorno Gestión de Datos IA
+
+version: '3.8'
+
+services:
+  # Servicio de Aplicación (Python + GCloud SDK)
+  app:
+    build: .
+    container_name: london_crime_app
+    volumes:
+      - .:/app
+      # Montaje opcional para credenciales locales de GCP si se desea
+      # - ~/.config/gcloud:/root/.config/gcloud 
+    environment:
+      - PYTHONUNBUFFERED=1
+      - DB_HOST=db
+      - DB_NAME=london_safety_db
+      - DB_USER=admin
+      - DB_PASS=admin_pass
+    tty: true
+    stdin_open: true
+    depends_on:
+      - db
+
+  # Servicio de Base de Datos (PostgreSQL)
+  db:
+    image: postgres:15
+    container_name: london_crime_db
+    restart: always
+    environment:
+      POSTGRES_DB: london_safety_db
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: admin_pass
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+volumes:
+  pgdata:

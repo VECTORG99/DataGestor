@@ -1,0 +1,12 @@
+# GCP Dependencies
+google-cloud-bigquery
+pandas
+pyarrow
+
+# DB Dependencies
+psycopg2-binary
+sqlalchemy
+
+# Utils
+ipython
+python-dotenv

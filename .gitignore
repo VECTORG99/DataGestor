@@ -1,0 +1,30 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+env/
+venv/
+ENV/
+
+# Credenciales y Configuración (Seguridad)
+.env
+*.json
+credentials/
+
+# Docker
+.docker/
+docker-compose.override.yml
+
+# Bases de Datos (Volúmenes)
+pgdata/
+
+# IDE e Interfaz
+.vscode/
+.idea/
+.DS_Store
+*.ipynb_checkpoints
+
+# Archivos de Word/Excel (Temporales)
+~$*.doc*
+~$*.xls*
