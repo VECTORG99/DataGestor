@@ -2,6 +2,7 @@
 google-cloud-bigquery
 pandas
 pyarrow
+db-dtypes
 
 # DB Dependencies
 psycopg2-binary

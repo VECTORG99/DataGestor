@@ -10,7 +10,7 @@ services:
     volumes:
       - .:/app
       # Montaje opcional para credenciales locales de GCP si se desea
-      # - ~/.config/gcloud:/root/.config/gcloud 
+      - ~/.config/gcloud:/root/.config/gcloud 
     environment:
       - PYTHONUNBUFFERED=1
       - DB_HOST=db

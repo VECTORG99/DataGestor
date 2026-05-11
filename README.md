@@ -17,25 +17,29 @@ Para garantizar la reproductibilidad del entorno, el proyecto utiliza **Docker**
 *   Cuenta de Google Cloud con acceso a BigQuery.
 
 ### Instrucciones de Instalación
-Siga estos pasos para levantar el entorno de desarrollo:
+Siga estos pasos para levantar el entorno de desarrollo optimizado para DataOps:
 
-1.  **Construir la imagen:**
+1.  **Autenticación en GCP (En tu máquina local):**
+    Antes de levantar el entorno Docker, asegúrate de estar autenticado en Google Cloud desde la terminal de tu computador (Windows/Mac/Linux):
+    ```bash
+    gcloud auth application-default login
+    ```
+    *Nota: Docker Compose está configurado para tomar estas credenciales locales (`~/.config/gcloud`) y montarlas en el contenedor, por lo que ya no es necesario instalar el SDK de Google pesado dentro de la imagen.*
+
+2.  **Configuración de Supabase:**
+    Asegúrate de haber creado tu archivo `.env` en la raíz del proyecto basándote en el archivo `.env.example`.
+
+3.  **Construir la imagen:**
     ```bash
     docker-compose build
     ```
-2.  **Levantar los servicios:**
+4.  **Levantar los servicios:**
     ```bash
     docker-compose up -d
     ```
-3.  **Acceder al contenedor de la aplicación:**
+5.  **Ejecutar el Pipeline DataOps:**
     ```bash
-    docker exec -it london_crime_app /bin/bash
-    ```
-    *Aquí dentro podrá ejecutar el Google Cloud SDK y scripts de Python.*
-
-4.  **Autenticación en GCP:** (Dentro del contenedor)
-    ```bash
-    gcloud auth application-default login
+    docker exec -it london_crime_app python src/pipeline_dataops.py
     ```
 
 ## 4. Estructura del Repositorio 
