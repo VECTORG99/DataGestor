@@ -26,13 +26,14 @@ def clean_and_transform_data(df: pd.DataFrame) -> pd.DataFrame:
         df = df.dropna(subset=['borough', 'major_category'])
         
         # Agregación: calculamos el total de crímenes por municipio y categoría mayor
-        df_agrupado = df.groupby(['borough', 'major_category'], as_index=False)['total_crimes'].sum()
+        # La columna 'value' contiene el conteo de incidentes en el dataset de BigQuery
+        df_agrupado = df.groupby(['borough', 'major_category'], as_index=False)['value'].sum()
         
         # Renombramos columnas para estandarizar
         df_agrupado = df_agrupado.rename(columns={
             'borough': 'municipio',
             'major_category': 'categoria_delito',
-            'total_crimes': 'total_incidentes'
+            'value': 'total_incidentes'
         })
         
         logging.info(f"Transformación completada. Filas resultantes: {len(df_agrupado)}")

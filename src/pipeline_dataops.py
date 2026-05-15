@@ -6,6 +6,16 @@ from ingestion import ingest_data_from_bigquery
 from cleaning import clean_and_transform_data, validate_data_quality
 from loading import load_to_supabase
 
+# Autenticamos nuestra sesión con la cuenta de Google
+# Configura la variable de entorno para credenciales JSON
+credentials_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "credentials.json")
+if os.path.exists(credentials_path):
+    os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = credentials_path
+    print("[OK] Credenciales de Google Cloud configuradas")
+else:
+    print("[WARNING] credentials.json no encontrado en la raíz del proyecto")
+    print("   Descarga tus credenciales de Google Cloud Console y colócalo en la raíz")
+
 # Configurar logs para guardar evidencia
 os.makedirs("logs", exist_ok=True)
 logging.basicConfig(
