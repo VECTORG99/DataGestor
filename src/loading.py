@@ -6,6 +6,9 @@ import os
 import logging
 import pandas as pd
 from sqlalchemy import create_engine
+from dotenv import load_dotenv
+
+load_dotenv()
 
 
 def load_to_supabase(df: pd.DataFrame) -> bool:
