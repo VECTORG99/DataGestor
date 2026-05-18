@@ -11,7 +11,7 @@ from loading import load_to_supabase
 credentials_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "credentials.json")
 if os.path.exists(credentials_path):
     os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = credentials_path
-    print("[OK] Credenciales de Google Cloud configuradas")
+    print("Credenciales de Google Cloud configuradas")
 else:
     print("[WARNING] credentials.json no encontrado en la raíz del proyecto")
     print("   Descarga tus credenciales de Google Cloud Console y colócalo en la raíz")

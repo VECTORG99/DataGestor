@@ -34,13 +34,13 @@ def ingest_data_from_bigquery() -> pd.DataFrame:
         credentials = service_account.Credentials.from_service_account_file(credentials_path)
         client = bigquery.Client(project="london-crime-491323", credentials=credentials)
         
-        logging.info("[OK] Autenticado con Google Cloud")
+        logging.info("Autenticado con Google Cloud")
         
         # Extraemos un resumen anual para el último año disponible (2016) para mayor velocidad
         query = """
             SELECT *
             FROM `bigquery-public-data.london_crime.crime_by_lsoa`
-            LIMIT 100;
+            LIMIT 10000;
         """
         
         df = client.query(query).to_dataframe()
