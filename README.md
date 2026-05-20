@@ -1,5 +1,12 @@
 # Sistema de Inteligencia Territorial para la Seguridad Pública en Londres
 
+---
+**Proyecto limpio y automatizado. Frontend React + Material UI leyendo directamente de Supabase.**
+- Deploy preparado para Docker Compose (local/producción) y Github Pages (estático, solo frontend).
+- Acceso seguro: nunca necesitas exponer credenciales privadas en el frontend.
+- Arquitectura clara: backend Python opcional, frontend desacoplado, datos en Supabase.
+---
+
 ## 1. Descripción del Proyecto
 Este repositorio contiene el diseño de arquitectura y la planificación para un sistema de gestión de datos basado en el dataset público `london_crime` de Google BigQuery. El objetivo es proporcionar una plataforma escalable para identificar focos de alta incidencia delictiva y analizar tendencias históricas en la ciudad de Londres desde el año 2008.
 
@@ -8,60 +15,111 @@ Se ha implementado una arquitectura **Lakehouse** sobre la plataforma Google Clo
 *   **Justificación:** Combina la flexibilidad de un Data Lake (Cloud Storage) con el rendimiento analítico de un Data Warehouse (BigQuery). Ideal para integrar visualización (Looker) y analítica avanzada (IA/ML) sin redundancia.
 *   **Capas de Datos:** Siguiendo el patrón Medallion (Bronce, Plata, Oro).
 
-## 3. Configuración del Entorno Virtual 
-Para garantizar la reproductibilidad del entorno, el proyecto utiliza **Docker** y **Docker Compose**.
+## 3. Instrucciones rápidas de Instalación y Uso
 
-### Requisitos Técnicos
-*   Docker Desktop (Windows/Mac) o Docker Engine (Linux).
-*   Docker Compose V2+.
-*   Cuenta de Google Cloud con acceso a BigQuery.
+1. Copia tus credenciales públicas de Supabase (URL y ANON_KEY) en `frontend/.env.local`.
+2. (Opcional) Coloca credenciales GCP en `src/credentials.json` si ejecutas pipeline backend DataOps.
+3. Levanta todo con Docker Compose:
+   ```bash
+   docker-compose up --build -d
+   ```
+4. Accede a http://localhost:5173 en tu navegador para ver tus datos limpios.
 
-### Instrucciones de Instalación
-Siga estos pasos para levantar el entorno de desarrollo optimizado para DataOps:
+5. (Opcional, backend/pipeline):
+   ```bash
+   docker exec -it london_crime_app python src/pipeline_dataops.py
+   ```
 
-1.  **Autenticación en GCP (En tu máquina local):**
-    Antes de levantar el entorno Docker, asegúrate de estar autenticado en Google Cloud desde la terminal de tu computador (Windows/Mac/Linux):
-    ```bash
-    gcloud auth application-default login
-    ```
-    *Nota: Docker Compose está configurado para tomar estas credenciales locales (`~/.config/gcloud`) y montarlas en el contenedor, por lo que ya no es necesario instalar el SDK de Google pesado dentro de la imagen.*
+## 4. Estructura del Proyecto (Actualizada)
 
-2.  **Configuración de Supabase:**
-    Asegúrate de haber creado tu archivo `.env` en la raíz del proyecto basándote en el archivo `.env.example`.
-
-3.  **Construir la imagen:**
-    ```bash
-    docker-compose build
-    ```
-4.  **Levantar los servicios:**
-    ```bash
-    docker-compose up -d
-    ```
-5.  **Ejecutar el Pipeline DataOps:**
-    ```bash
-    docker exec -it london_crime_app python src/pipeline_dataops.py
-    ```
-
-## 4. Estructura del Repositorio 
-```text
-├── docs/                 # Documentación de diseño y justificación.
-│   ├── arquitectura_y_tecnologia.md
-│   └── diseño_tecnico.md
-├── sql/                  # Scripts de procesamiento Medallion.
-│   └── analisis_london_crime.sql
-├── plan_gestion/         # Archivos de planificación PMBOK/WBS.
-│   └── plan_gestion_y_seguimiento.md
-├── Dockerfile            # Configuración del entorno Python + GCloud SDK.
-├── docker-compose.yml    # Orquestación de App y PostgreSQL.
-├── requirements.txt      # Dependencias de Python.
-└── README.md             # Documento principal.
+```
+DataGestor/
+├── docs/                  # Documentación técnica 
+├── logs/                  # Logs backend/pipeline
+├── src/                   # Código Python: pipeline, limpieza, carga, tests
+│    └── credentials.json  # (no subir a git)
+├── frontend/              # Frontend React para Supabase
+│    ├── src/              # Código fuente React
+│    ├── Dockerfile        # Imagen nginx + build React
+│    ├── .env.local        # Credenciales públicas supabase
+│    ├── vite.config.js
+│    ├── package.json / lock.json
+│    └── ...
+├── Dockerfile             # Backend Python principal
+├── docker-compose.yml     # Orquesta app/db/frontend React
+├── requirements.txt
+└── README.md
 ```
 
+## ¿Cómo desplegar el frontend en Github Pages? ️
+
+1. Construye el frontend localmente:
+    ```bash
+    cd frontend
+    npm install
+    npm run build
+    ```
+    Esto deja `/frontend/dist/` listo para deploy.
+
+2. Sube a la rama `gh-pages`. Lo más fácil: usa [peaceiris/actions-gh-pages](https://github.com/peaceiris/actions-gh-pages) en Github Actions:
+
+    *Ejemplo de workflow Github Actions (en .github/workflows/deploy-pages.yml):*
+    ```yaml
+    name: Deploy React Frontend to Github Pages
+    on:
+      push:
+        branches:
+          - main
+    jobs:
+      build-and-deploy:
+        runs-on: ubuntu-latest
+        steps:
+          - name: Checkout code
+            uses: actions/checkout@v4
+          - name: Setup Node.js
+            uses: actions/setup-node@v4
+            with:
+              node-version: 20
+          - name: Install dependencies
+            run: |
+              cd frontend
+              npm ci
+          - name: Build
+            run: |
+              cd frontend
+              npm run build
+          - name: Deploy to Github Pages
+            uses: peaceiris/actions-gh-pages@v4
+            with:
+              personal_token: ${{ secrets.GITHUB_TOKEN }}
+              publish_dir: ./frontend/dist
+    ```
+3. Configura Pages en el repo para servir desde la rama gh-pages.
+
+- El backend sólo es necesario para procesamiento, el frontend funciona 100% estático con acceso seguro solo lectura.
+- En producción: basta la URL y ANON_KEY de Supabase en el frontend (sin backend ni DB local).
+
+---
+
+## Limpieza de residuos
+
+No quedan archivos basura/patrones demo de frameworks. Si ejecutas local y deseas limpiar espacio:
+Ve a /frontend y ejecuta:
+```
+rm -rf node_modules
+```
+Siempre puedes restaurar dependencias con:
+```
+npm install
+```
+
+---
+
 ## 5. Casos de Análisis SQL
-En la carpeta `/sql/` se encuentran los scripts detallados. A continuación, se muestran los ejemplos principales:
+
+En la carpeta `/sql/` se encuentran los scripts detallados. A continuación, ejemplos principales:
 
 ### A. Rango de Fechas
-Identifica el periodo histórico cubierto por el dataset.
 ```sql
 SELECT 
     MIN(year) as primer_año, 
@@ -70,20 +128,18 @@ FROM `bigquery-public-data.london_crime.crime_by_lsoa`;
 ```
 
 ### B. Crímenes por Año y Categoría
-Clasifica los crímenes en violencia vs robo/otros.
 ```sql
 SELECT
-    year,
-    COUNT(CASE WHEN major_category = 'Violence Against the Person' THEN 1 END) AS Crimenes_Violentos,
-    COUNT(CASE WHEN major_category = 'Theft and Handling' THEN 1 END) AS Robos_Hurtos,
-    SUM(value) as total_incidentes
+year,
+COUNT(CASE WHEN major_category = 'Violence Against the Person' THEN 1 END) AS Crimenes_Violentos,
+COUNT(CASE WHEN major_category = 'Theft and Handling' THEN 1 END) AS Robos_Hurtos,
+SUM(value) as total_incidentes
 FROM `bigquery-public-data.london_crime.crime_by_lsoa`
 GROUP BY year
 ORDER BY year DESC;
 ```
 
 ### C. Top 10 Municipios con Más Crímenes
-Identifica los distritos con mayor incidencia delictiva.
 ```sql
 SELECT 
     borough, 
@@ -93,3 +149,5 @@ GROUP BY borough
 ORDER BY total_crimenes DESC
 LIMIT 10;
 ```
+
+---

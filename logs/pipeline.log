@@ -1,2 +1,55 @@
-2026-05-11 17:21:53,901 [INFO] --- INICIANDO PIPELINE DATAOPS ---
-2026-05-11 17:21:53,902 [INFO] Fase 1: Ingesta de datos desde BigQuery...
+2026-05-20 17:50:14,655 [INFO] --- INICIANDO PIPELINE DATAOPS ---
+2026-05-20 17:50:14,656 [INFO] Fase 1: Ingesta de datos desde BigQuery...
+2026-05-20 17:50:14,688 [INFO] Autenticado con Google Cloud
+2026-05-20 17:50:17,141 [INFO] Ingesta completada. Filas extraídas: 10000
+2026-05-20 17:50:17,141 [INFO] ======================================================================
+2026-05-20 17:50:17,141 [INFO] FASE 2: LIMPIEZA Y TRANSFORMACIÓN DE DATOS
+2026-05-20 17:50:17,141 [INFO] ======================================================================
+2026-05-20 17:50:17,141 [INFO] Registros iniciales: 10000
+2026-05-20 17:50:17,142 [INFO] Columnas estandarizadas: ['lsoa_code', 'borough', 'major_category', 'minor_category', 'value', 'year', 'month']
+2026-05-20 17:50:17,142 [INFO] Paso 1: Detectando y manejando valores nulos...
+2026-05-20 17:50:17,148 [INFO]   Filas eliminadas por valores nulos: 0
+2026-05-20 17:50:17,149 [INFO] Paso 2: Validando y corrigiendo tipos de datos...
+2026-05-20 17:50:17,149 [INFO]   year convertido a Int64
+2026-05-20 17:50:17,149 [INFO]   month convertido a Int64
+2026-05-20 17:50:17,149 [INFO]   value convertido a float64
+2026-05-20 17:50:17,150 [INFO]   borough convertido a string
+2026-05-20 17:50:17,150 [INFO]   major_category convertido a string
+2026-05-20 17:50:17,150 [INFO]   minor_category convertido a string
+2026-05-20 17:50:17,150 [INFO] Paso 3: Validando rangos de valores...
+2026-05-20 17:50:17,152 [INFO]   Filas eliminadas por valores fuera de rango: 0
+2026-05-20 17:50:17,152 [INFO] Paso 4: Normalizando campos de texto...
+2026-05-20 17:50:17,154 [INFO]   borough normalizado (espacios eliminados, caso unificado)
+2026-05-20 17:50:17,159 [INFO]   major_category normalizado (espacios eliminados, caso unificado)
+2026-05-20 17:50:17,161 [INFO]   minor_category normalizado (espacios eliminados, caso unificado)
+2026-05-20 17:50:17,164 [INFO]   Correcciones ortográficas aplicadas a boroughs
+2026-05-20 17:50:17,164 [INFO] Paso 5: Detectando y eliminando duplicados...
+2026-05-20 17:50:17,168 [WARNING]   8068 registros duplicados por (borough, major_category, year, month)
+2026-05-20 17:50:17,171 [INFO]   Filas eliminadas por duplicados: 5816
+2026-05-20 17:50:17,171 [INFO] Paso 6: Creando columna de fecha unificada...
+2026-05-20 17:50:17,175 [INFO]   Columna 'date' creada en formato datetime
+2026-05-20 17:50:17,175 [INFO] Paso 7: Detectando valores atípicos (outliers)...
+2026-05-20 17:50:17,177 [INFO]   63 valores atípicos detectados (método: iqr)
+2026-05-20 17:50:17,177 [INFO]   Rango típico: 0 - 0
+2026-05-20 17:50:17,177 [INFO]   Valores atípicos: min=1, max=3
+2026-05-20 17:50:17,177 [INFO] Paso 8: Eliminando columnas innecesarias...
+2026-05-20 17:50:17,178 [INFO]   Columnas eliminadas: ['lsoa_code']
+2026-05-20 17:50:17,178 [INFO] ======================================================================
+2026-05-20 17:50:17,178 [INFO] Registros finales: 4184
+2026-05-20 17:50:17,178 [INFO] Transformación completada exitosamente
+2026-05-20 17:50:17,178 [INFO] ======================================================================
+2026-05-20 17:50:17,178 [INFO] ======================================================================
+2026-05-20 17:50:17,178 [INFO] FASE 3: VALIDACIÓN ESTRUCTURAL Y SEMÁNTICA
+2026-05-20 17:50:17,178 [INFO] ======================================================================
+2026-05-20 17:50:17,178 [INFO] Esquema de columnas validado
+2026-05-20 17:50:17,178 [INFO] Tipos de datos validados
+2026-05-20 17:50:17,179 [INFO] Sin valores nulos en columnas críticas
+2026-05-20 17:50:17,180 [INFO] Rangos de valores validados
+2026-05-20 17:50:17,181 [INFO] Sin registros duplicados
+2026-05-20 17:50:17,181 [INFO] Formato de fechas validado
+2026-05-20 17:50:17,181 [INFO] ======================================================================
+2026-05-20 17:50:17,181 [INFO] VALIDACIÓN EXITOSA: Los datos cumplen todas las reglas de calidad
+2026-05-20 17:50:17,181 [INFO] ======================================================================
+2026-05-20 17:50:17,181 [INFO] Fase 4: Carga a Supabase (PostgreSQL)...
+2026-05-20 17:50:26,266 [INFO] Carga completada exitosamente en la tabla 'london_crime_aggregated'.
+2026-05-20 17:50:26,266 [INFO] --- PIPELINE DATAOPS FINALIZADO CON ÉXITO ---

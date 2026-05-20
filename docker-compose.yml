@@ -36,5 +36,22 @@ services:
     volumes:
       - pgdata:/var/lib/postgresql/data
 
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: datagestor-frontend
+    ports:
+      - "5173:80"
+    env_file:
+      - ./frontend/.env.local
+    restart: unless-stopped
+    networks:
+      - datagestor-net
+
 volumes:
   pgdata:
+
+networks:
+  datagestor-net:
+
