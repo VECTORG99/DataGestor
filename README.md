@@ -7,6 +7,58 @@
 - Arquitectura clara: backend Python opcional, frontend desacoplado, datos en Supabase.
 ---
 
+## Etapas del Pipeline
+
+### 1. Ingesta y Limpieza de Datos
+- Origen: Dataset público `london_crime` (BigQuery)
+- Pipeline backend Python:
+  - Descarga del dataset bruto, limpieza de datos nulos/inconsistentes.
+  - Transformaciones: agregaciones por año, categoría, municipio.
+  - Generación del dataset limpio `london_crime_aggregated`.
+- Herramienta: Scripts en Python, ejecutables vía Docker (“london_crime_app”)
+- Output: Archivo/tablas limpias y listas para carga a base de datos analítica.
+
+### 2. Carga a la Base de Datos Analítica
+- Destino: Supabase (PostgreSQL en la nube)
+- Pipeline backend Python: Inserta los datos agregados en la tabla `london_crime_aggregated`.
+- Reglas: Solo lectura desde el frontend, escritura protegida.
+
+### 3. Exposición de Datos para Visualización
+- En Supabase: Exposición de la información vía REST y SDKs públicos (JS).
+- Seguridad: Uso exclusivo de `anon_key` (solo lectura en frontend).
+
+### 4. Visualización & Consumo Frontend
+- Frontend React profesional:
+  - SPA creada con Vite y Material UI.
+  - Consulta Supabase con `@supabase/supabase-js` y muestra tabla “inteligente”.
+  - Opción para agregar más features (filtros, paginación, charts).
+- Docker Compose: Orquestación automática de frontend + backend (pipeline) + db.
+- Deploy:
+  - Local: Nginx sirve la build de React.
+  - Producción: Opcional despliegue estático en Github Pages (consume Supabase directamente, no requiere backend ni db propios).
+
+### 5. Automatización y Ciclo DevOps
+- Docker Compose: Reproduce y automatiza todo el stack localmente.
+- Limpieza y mantenimiento: Scripts/indicaciones para limpiar nodos, dependencias y mantener el entorno reproducible.
+- (Opcional) CI/CD: Configurable para autodeploy en Github Pages (frontend), con secrets seguros y setup reproducible.
+
+---
+
+## Diagrama de Flujo Simplificado
+
+```
+Dataset Bruto (BigQuery)
+     ↓
+Ingesta & Limpieza (Python, Docker)
+     ↓
+Carga a Supabase
+     ↓
+Consulta Frontend (React SPA)
+     ↓
+Visualización Profesional
+```
+---
+
 ## 1. Descripción del Proyecto
 Este repositorio contiene el diseño de arquitectura y la planificación para un sistema de gestión de datos basado en el dataset público `london_crime` de Google BigQuery. El objetivo es proporcionar una plataforma escalable para identificar focos de alta incidencia delictiva y analizar tendencias históricas en la ciudad de Londres desde el año 2008.
 
