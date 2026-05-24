@@ -25,11 +25,9 @@ jobs:
         run: black --check apps/backend/
       - name: Run flake8
         run: flake8 apps/backend/ --max-line-length=100
-      - name: Dummy pipeline ETL check
+      - name: Run pytest
         run: |
-          echo "Simulando ejecución del pipeline_dataops.py"
-          python apps/backend/cli/pipeline_dataops.py || true
+          python -m pytest apps/backend/tests/ -v
         env:
           SUPABASE_DB_URL: dummy
           GOOGLE_APPLICATION_CREDENTIALS: dummy
-        continue-on-error: true

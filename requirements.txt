@@ -11,3 +11,6 @@ sqlalchemy
 # Utils
 ipython
 python-dotenv
+
+# Testing
+pytest

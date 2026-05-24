@@ -11,7 +11,7 @@ if str(ROOT_DIR) not in sys.path:
 
 from apps.backend.pipeline.ingestion import ingest_data_from_bigquery
 from apps.backend.pipeline.cleaning import clean_and_transform_data, validate_data_quality
-from apps.backend.pipeline.loading import load_to_supabase
+from apps.backend.pipeline.loading import load_to_supabase, save_clean_data
 
 # Autenticamos nuestra sesión con la cuenta de Google
 # Configura la variable de entorno para credenciales JSON
@@ -41,7 +41,8 @@ def main():
     1. Ingesta desde BigQuery
     2. Limpieza y transformación
     3. Validación de calidad
-    4. Carga en Supabase
+    4. Guardado local en data/processed/
+    5. Carga en Supabase
     """
     logging.info("--- INICIANDO PIPELINE DATAOPS ---")
     load_dotenv(dotenv_path=ROOT_DIR / ".env")
@@ -56,7 +57,11 @@ def main():
         # 3. VALIDACIÓN
         validate_data_quality(df_agrupado)
         
-        # 4. CARGA
+        # 4. GUARDADO LOCAL
+        output_dir = ROOT_DIR / "data" / "processed"
+        save_clean_data(df_agrupado, output_dir)
+        
+        # 5. CARGA
         load_to_supabase(df_agrupado)
         
         logging.info("--- PIPELINE DATAOPS FINALIZADO CON ÉXITO ---")

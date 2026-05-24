@@ -14,12 +14,23 @@
 
 ### 1. Ingesta y Limpieza de Datos
 - Origen: Dataset público `london_crime` (BigQuery)
-- Pipeline backend Python:
-  - Descarga del dataset bruto, limpieza de datos nulos/inconsistentes.
-  - Transformaciones: agregaciones por año, categoría, municipio.
-  - Generación del dataset limpio `london_crime_aggregated`.
+- Pipeline backend Python con 9 etapas de limpieza:
+
+| # | Etapa | Función | Descripción |
+|---|-------|---------|-------------|
+| 1 | Estandarizar columnas | `standardize_column_names()` | Convierte nombres a snake_case |
+| 2 | Manejo de nulos | `handle_null_values()` | Elimina filas con nulos en columnas críticas; reconoce `NULL`, `Unknown`, `N/A` como nulos |
+| 3 | Validar tipos | `validate_data_types()` | Convierte `year`/`month` a `Int64`, `value` a `float64`, texto a `string` |
+| 4 | Validar rangos | `validate_value_ranges()` | Elimina meses ∉ [1,12], años < 2000, valores negativos |
+| 5 | Normalizar texto | `normalize_text_fields()` | Elimina espacios, título capitalizado, corrige ortografía de boroughs |
+| 6 | Eliminar duplicados | `detect_and_remove_duplicates()` | Elimina duplicados exactos y por combinación `(borough, major_category, year, month)` |
+| 7 | Crear fecha | `create_date_column()` | Crea columna `date` unificada desde `year` + `month` |
+| 8 | Detectar outliers | `detect_outliers()` | Reporta valores atípicos (IQR/Z-score); no elimina por defecto |
+| 9 | Eliminar columnas | `remove_unnecessary_columns()` | Conserva solo columnas relevantes |
+
+- Generación del dataset limpio `london_crime_aggregated`.
 - Herramienta: Scripts en Python, ejecutables vía Docker (“london_crime_app”)
-- Output: Archivo/tablas limpias y listas para carga a base de datos analítica.
+- Output: Tabla en Supabase + archivos CSV/Parquet en `data/processed/`.
 
 ### 2. Carga a la Base de Datos Analítica
 - Destino: Supabase (PostgreSQL en la nube)
@@ -112,7 +123,8 @@ DataGestor/
 │   └── credentials.json    # Credenciales GCP
 ├── data/                   # Datos locales (no subir a git)
 │   ├── logs/               # Logs del pipeline
-│   └── outputs/            # Outputs generados
+│   ├── outputs/            # Outputs generados
+│   └── processed/          # Datos limpios (CSV + Parquet) generados por el pipeline
 ├── infra/                  # Infraestructura (Docker)
 │   ├── backend.Dockerfile
 │   ├── frontend.Dockerfile
@@ -181,7 +193,32 @@ jobs:
 El backend CI ejecuta:
 - `black --check apps/backend/` (formato)
 - `flake8 apps/backend/` (lint)
-- Verificación de import del pipeline
+- `python -m pytest apps/backend/tests/ -v` (tests unitarios)
+
+---
+
+## Tests
+
+Los tests unitarios cubren cada etapa del pipeline de limpieza:
+
+| Archivo | Tests |
+|---------|-------|
+| `tests/test_cleaning.py` | `standardize_column_names`, `handle_null_values`, `validate_data_types`, `validate_value_ranges`, `normalize_text_fields`, `detect_and_remove_duplicates`, `create_date_column`, `detect_outliers`, `remove_unnecessary_columns`, `clean_and_transform_data`, `validate_data_quality` |
+| `tests/test_loading.py` | `save_clean_data` (CSV + Parquet) |
+| `tests/test_pipeline_dataops.py` | Importación y entorno |
+
+### Ejecutar tests localmente
+
+```bash
+# Opción 1: Directo (requiere PYTHONPATH)
+PYTHONPATH=. python -m pytest apps/backend/tests/ -v
+
+# Opción 2: Docker
+docker exec london_crime_app python -m pytest apps/backend/tests/ -v
+
+# Opción 3: Instalar pytest y ejecutar
+pip install pytest && python -m pytest apps/backend/tests/ -v
+```
 
 ---
 

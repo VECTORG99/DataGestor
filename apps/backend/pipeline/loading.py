@@ -1,14 +1,42 @@
 """
 Módulo de Carga de Datos
-Responsable de cargar datos procesados en Supabase (PostgreSQL)
+Responsable de cargar datos procesados en Supabase (PostgreSQL) y guardar a disco.
 """
 import os
+from pathlib import Path
 import logging
+from typing import Union, Dict
 import pandas as pd
 from sqlalchemy import create_engine
 from dotenv import load_dotenv
 
 load_dotenv()
+
+
+def save_clean_data(df: pd.DataFrame, output_dir: Union[str, Path]) -> Dict[str, str]:
+    """
+    Guarda el DataFrame limpio en data/processed/ en formatos CSV y Parquet.
+
+    Args:
+        df (pd.DataFrame): DataFrame limpio a persistir.
+        output_dir (str | Path): Directorio de salida (data/processed).
+
+    Returns:
+        dict[str, str]: Rutas de los archivos generados {'csv': ..., 'parquet': ...}.
+    """
+    output_dir = Path(output_dir)
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    csv_path = output_dir / "london_crime_aggregated.csv"
+    parquet_path = output_dir / "london_crime_aggregated.parquet"
+
+    df.to_csv(csv_path, index=False)
+    logging.info("Datos guardados en %s", csv_path)
+
+    df.to_parquet(parquet_path, index=False)
+    logging.info("Datos guardados en %s", parquet_path)
+
+    return {"csv": str(csv_path), "parquet": str(parquet_path)}
 
 
 def load_to_supabase(df: pd.DataFrame) -> bool:
