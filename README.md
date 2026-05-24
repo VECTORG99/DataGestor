@@ -1,10 +1,13 @@
 # Sistema de Inteligencia Territorial para la Seguridad Pública en Londres
 
+[![CI Backend](https://github.com/VECTORG99/DataGestor/actions/workflows/ci-backend.yml/badge.svg)](https://github.com/VECTORG99/DataGestor/actions/workflows/ci-backend.yml)
+
 ---
 **Proyecto limpio y automatizado. Frontend React + Material UI leyendo directamente de Supabase.**
 - Deploy preparado para Docker Compose (local/producción) y Github Pages (estático, solo frontend).
 - Acceso seguro: nunca necesitas exponer credenciales privadas en el frontend.
 - Arquitectura clara: backend Python opcional, frontend desacoplado, datos en Supabase.
+- Repositorio: https://github.com/VECTORG99/DataGestor
 ---
 
 ## Etapas del Pipeline
@@ -30,7 +33,7 @@
 ### 4. Visualización & Consumo Frontend
 - Frontend React profesional:
   - SPA creada con Vite y Material UI.
-  - Consulta Supabase con `@supabase/supabase-js` y muestra tabla “inteligente”.
+  - Consulta Supabase con `@supabase/supabase-js` y muestra tabla dinámica.
   - Opción para agregar más features (filtros, paginación, charts).
 - Docker Compose: Orquestación automática de frontend + backend (pipeline) + db.
 - Deploy:
@@ -39,8 +42,8 @@
 
 ### 5. Automatización y Ciclo DevOps
 - Docker Compose: Reproduce y automatiza todo el stack localmente.
+- CI/CD: Workflow de backend CI (black + flake8) y workflow para deploy a Github Pages.
 - Limpieza y mantenimiento: Scripts/indicaciones para limpiar nodos, dependencias y mantener el entorno reproducible.
-- (Opcional) CI/CD: Configurable para autodeploy en Github Pages (frontend), con secrets seguros y setup reproducible.
 
 ---
 
@@ -69,107 +72,130 @@ Se ha implementado una arquitectura **Lakehouse** sobre la plataforma Google Clo
 
 ## 3. Instrucciones rápidas de Instalación y Uso
 
-1. Copia tus credenciales públicas de Supabase (URL y ANON_KEY) en `apps/frontend/.env.local`.
-2. (Opcional) Coloca credenciales GCP en `config/credentials.json` si ejecutas pipeline backend DataOps.
-3. Levanta todo con Docker Compose:
-   ```bash
-   docker-compose -f infra/docker-compose.yml up --build -d
-   ```
-4. Accede a http://localhost:5173 en tu navegador para ver tus datos limpios.
+```bash
+# 1. Clonar el repositorio
+git clone https://github.com/VECTORG99/DataGestor.git
+cd DataGestor
 
-5. (Opcional, backend/pipeline):
-   ```bash
-   docker exec -it london_crime_app python apps/backend/cli/pipeline_dataops.py
-   ```
+# 2. Configurar credenciales
+#    Copia tus credenciales públicas de Supabase en apps/frontend/.env.local
+#    (Opcional) Coloca credenciales GCP en config/credentials.json
 
-## 4. Estructura del Proyecto (Actualizada)
+# 3. Levantar todo con Docker Compose
+docker compose -f infra/docker-compose.yml up --build -d
+
+# 4. Abrir en navegador
+#    http://localhost:5173
+```
+
+### Ejecutar el pipeline backend (opcional)
+```bash
+docker exec -it london_crime_app python apps/backend/cli/pipeline_dataops.py
+```
+
+## 4. Estructura del Proyecto
 
 ```
 DataGestor/
-├── docs/                  # Documentación técnica 
-├── apps/                  # Apps (backend + frontend)
-│    ├── backend/          # Código Python: pipeline, limpieza, carga, tests
-│    └── frontend/         # Frontend React para Supabase
-├── config/                # Configuración local (no subir a git)
-│    └── credentials.json
-├── data/                  # Logs y outputs locales
-│    ├── logs/
-│    └── outputs/
-├── infra/                 # Infraestructura (Dockerfiles/Compose)
-│    ├── backend.Dockerfile
-│    ├── frontend.Dockerfile
-│    └── docker-compose.yml
+├── apps/                   # Aplicaciones
+│   ├── backend/            # Código Python (pipeline ETL)
+│   │   ├── pipeline/       #   ingestion, cleaning, loading
+│   │   ├── cli/            #   pipeline_dataops.py (entrypoint)
+│   │   └── tests/          #   test_pipeline_dataops.py
+│   └── frontend/           # React SPA (Vite + Material UI)
+│       ├── src/            #   App.jsx, main.jsx
+│       ├── public/         #   favicon, icons
+│       ├── .env.local      #   Credenciales Supabase (no subir)
+│       └── package.json
+├── config/                 # Configuración sensible (no subir a git)
+│   ├── .env.example        # Plantilla de variables de entorno
+│   └── credentials.json    # Credenciales GCP
+├── data/                   # Datos locales (no subir a git)
+│   ├── logs/               # Logs del pipeline
+│   └── outputs/            # Outputs generados
+├── infra/                  # Infraestructura (Docker)
+│   ├── backend.Dockerfile
+│   ├── frontend.Dockerfile
+│   └── docker-compose.yml
+├── .github/workflows/      # CI/CD
+│   ├── ci-backend.yml      # Lint + test del backend
+│   └── deploy.yml          # Deploy a Github Pages
 ├── requirements.txt
 └── README.md
 ```
 
-## ¿Cómo desplegar el frontend en Github Pages? ️
+## Despliegue en Github Pages
 
-1. Construye el frontend localmente:
-    ```bash
-    cd apps/frontend
-    npm install
-    npm run build
-    ```
-    Esto deja `/apps/frontend/dist/` listo para deploy.
+El frontend es una SPA 100% estática que puede funcionar sin backend ni Docker. Para desplegar:
 
-2. Sube a la rama `gh-pages`. Lo más fácil: usa [peaceiris/actions-gh-pages](https://github.com/peaceiris/actions-gh-pages) en Github Actions:
-
-    *Ejemplo de workflow Github Actions (en .github/workflows/deploy-pages.yml):*
-    ```yaml
-    name: Deploy React Frontend to Github Pages
-    on:
-      push:
-        branches:
-          - main
-    jobs:
-      build-and-deploy:
-        runs-on: ubuntu-latest
-        steps:
-          - name: Checkout code
-            uses: actions/checkout@v4
-          - name: Setup Node.js
-            uses: actions/setup-node@v4
-            with:
-              node-version: 20
-          - name: Install dependencies
-            run: |
-              cd apps/frontend
-              npm ci
-          - name: Build
-            run: |
-              cd apps/frontend
-              npm run build
-          - name: Deploy to Github Pages
-            uses: peaceiris/actions-gh-pages@v4
-            with:
-              personal_token: ${{ secrets.GITHUB_TOKEN }}
-              publish_dir: ./apps/frontend/dist
-    ```
-3. Configura Pages en el repo para servir desde la rama gh-pages.
-
-- El backend sólo es necesario para procesamiento, el frontend funciona 100% estático con acceso seguro solo lectura.
-- En producción: basta la URL y ANON_KEY de Supabase en el frontend (sin backend ni DB local).
-
----
-
-## Limpieza de residuos
-
-No quedan archivos basura/patrones demo de frameworks. Si ejecutas local y deseas limpiar espacio:
-Ve a /apps/frontend y ejecuta:
-```
-rm -rf node_modules
-```
-Siempre puedes restaurar dependencias con:
-```
+```bash
+cd apps/frontend
 npm install
+npm run build
 ```
 
+Esto genera `apps/frontend/dist/`. Luego puedes:
+
+1. **Subir manualmente** la carpeta `dist/` a la rama `gh-pages`
+2. **Usar el workflow incluido** en `.github/workflows/deploy.yml` — configúralo agregando los secrets `VITE_SUPABASE_URL` y `VITE_SUPABASE_ANON_KEY` en tu repositorio de GitHub.
+
+```yaml
+# .github/workflows/deploy.yml (ya incluido en el repo)
+name: Deploy React App to GitHub Pages
+on:
+  push:
+    branches: [master]
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: |
+          cd apps/frontend
+          npm ci
+          echo "VITE_SUPABASE_URL=${{ secrets.VITE_SUPABASE_URL }}" >> .env
+          echo "VITE_SUPABASE_ANON_KEY=${{ secrets.VITE_SUPABASE_ANON_KEY }}" >> .env
+          npm run build
+      - uses: peaceiris/actions-gh-pages@v4
+        with:
+          personal_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./apps/frontend/dist
+```
+
+3. Configurar Github Pages en **Settings → Pages** para servir desde `gh-pages`.
+
+> El backend solo es necesario para procesamiento. En producción basta la URL y ANON_KEY de Supabase en el frontend (sin backend ni DB local).
+
 ---
+
+## CI/CD en GitHub Actions
+
+| Workflow | Archivo | Disparo |
+|---|---|---|
+| Backend CI | `.github/workflows/ci-backend.yml` | Push/PR a `master` |
+| Deploy Pages | `.github/workflows/deploy.yml` | Push a `master` |
+
+El backend CI ejecuta:
+- `black --check apps/backend/` (formato)
+- `flake8 apps/backend/` (lint)
+- Verificación de import del pipeline
+
+---
+
+## Requisitos
+
+- **Docker** y **Docker Compose** (para el stack completo)
+- **Node.js 20+** (solo para build local del frontend)
+- **Python 3.9+** (solo para desarrollo del backend fuera de Docker)
+- **Cuenta de Supabase** con tabla `london_crime_aggregated`
+- **(Opcional) Cuenta de GCP** con acceso a BigQuery
 
 ## 5. Casos de Análisis SQL
 
-En la carpeta `/sql/` se encuentran los scripts detallados. A continuación, ejemplos principales:
+Ejemplos de consultas sobre el dataset `london_crime` en BigQuery:
 
 ### A. Rango de Fechas
 ```sql
@@ -203,3 +229,15 @@ LIMIT 10;
 ```
 
 ---
+
+## Notas de Mantenimiento
+
+- **node_modules** no se versiona. Si clonaste el repo y necesitas desarrollo local en frontend:
+  ```bash
+  cd apps/frontend && npm install
+  ```
+- **credentials.json** y **.env** están en `.gitignore` — nunca se suben al repo.
+- Para limpiar el entorno Docker:
+  ```bash
+  docker compose -f infra/docker-compose.yml down -v
+  ```
