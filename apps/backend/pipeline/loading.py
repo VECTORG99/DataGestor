@@ -60,7 +60,7 @@ def load_to_supabase(df: pd.DataFrame) -> bool:
         if not db_url:
             raise ValueError("No se encontró SUPABASE_DB_URL en el archivo .env")
 
-        # SQLAlchemy necesita 'postgresql://' en lugar de 'postgres://' (ya está correcto en el .env)
+        # SQLAlchemy usa 'postgresql://' (ya correcto en .env)
         engine = create_engine(db_url)
 
         # Insertar en base de datos. if_exists='replace' sobrescribe la tabla para la demo.

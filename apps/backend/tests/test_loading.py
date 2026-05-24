@@ -1,5 +1,4 @@
 import pandas as pd
-import pytest
 from pathlib import Path
 
 from apps.backend.pipeline.loading import save_clean_data

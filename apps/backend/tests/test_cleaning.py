@@ -1,5 +1,4 @@
 import pandas as pd
-import numpy as np
 from pandas import Timestamp
 
 from apps.backend.pipeline.cleaning import (

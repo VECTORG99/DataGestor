@@ -9,12 +9,12 @@ ROOT_DIR = Path(__file__).resolve().parents[3]
 if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
 
-from apps.backend.pipeline.ingestion import ingest_data_from_bigquery
-from apps.backend.pipeline.cleaning import (
+from apps.backend.pipeline.ingestion import ingest_data_from_bigquery  # noqa: E402
+from apps.backend.pipeline.cleaning import (  # noqa: E402
     clean_and_transform_data,
     validate_data_quality,
 )
-from apps.backend.pipeline.loading import load_to_supabase, save_clean_data
+from apps.backend.pipeline.loading import load_to_supabase, save_clean_data  # noqa: E402
 
 # Autenticamos nuestra sesión con la cuenta de Google
 # Configura la variable de entorno para credenciales JSON
