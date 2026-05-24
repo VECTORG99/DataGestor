@@ -147,9 +147,7 @@ def validate_value_ranges(df: pd.DataFrame) -> pd.DataFrame:
         invalid_months = ~df["month"].between(1, 12)
         month_invalid = invalid_months.sum()
         if month_invalid > 0:
-            logging.warning(
-                f"  {month_invalid} registros con meses inválidos (fuera de 1-12)"
-            )
+            logging.warning(f"  {month_invalid} registros con meses inválidos (fuera de 1-12)")
             df = df[~invalid_months]
 
     # Validar años (razonables para London Crime)
@@ -268,9 +266,7 @@ def create_date_column(df: pd.DataFrame) -> pd.DataFrame:
     if "year" in df.columns and "month" in df.columns:
         try:
             # Crear fecha asumiendo el primer día del mes
-            df["date"] = pd.to_datetime(
-                df[["year", "month"]].assign(day=1), errors="coerce"
-            )
+            df["date"] = pd.to_datetime(df[["year", "month"]].assign(day=1), errors="coerce")
             logging.info("  Columna 'date' creada en formato datetime")
         except Exception as e:
             logging.error(f"Error al crear columna de fecha: {e}")
@@ -327,9 +323,7 @@ def detect_outliers(df: pd.DataFrame, method: str = "iqr") -> dict:
     outliers_info["outlier_values"] = outlier_values
 
     if len(outlier_indices) > 0:
-        logging.info(
-            f"  {len(outlier_indices)} valores atípicos detectados (método: {method})"
-        )
+        logging.info(f"  {len(outlier_indices)} valores atípicos detectados (método: {method})")
         logging.info(
             f"  Rango típico: {df['value'].quantile(0.05):.0f} - {df['value'].quantile(0.95):.0f}"
         )
@@ -342,9 +336,7 @@ def detect_outliers(df: pd.DataFrame, method: str = "iqr") -> dict:
     return outliers_info
 
 
-def remove_unnecessary_columns(
-    df: pd.DataFrame, keep_columns: list = None
-) -> pd.DataFrame:
+def remove_unnecessary_columns(df: pd.DataFrame, keep_columns: list = None) -> pd.DataFrame:
     """
     Elimina columnas innecesarias o redundantes.
 
@@ -377,9 +369,7 @@ def remove_unnecessary_columns(
     return df
 
 
-def clean_and_transform_data(
-    df: pd.DataFrame, remove_outliers: bool = False
-) -> pd.DataFrame:
+def clean_and_transform_data(df: pd.DataFrame, remove_outliers: bool = False) -> pd.DataFrame:
     """
     Orquesta todo el proceso de limpieza y transformación del dataset.
 
@@ -487,41 +477,28 @@ def validate_data_quality(df: pd.DataFrame) -> bool:
 
         # Validar completitud (no nulos)
         null_count = (
-            df[["borough", "major_category", "year", "month", "value"]]
-            .isnull()
-            .sum()
-            .sum()
+            df[["borough", "major_category", "year", "month", "value"]].isnull().sum().sum()
         )
-        assert (
-            null_count == 0
-        ), f"Existen {null_count} valores nulos en el dataset limpio"
+        assert null_count == 0, f"Existen {null_count} valores nulos en el dataset limpio"
         logging.info("Sin valores nulos en columnas críticas")
 
         # Validar semántica
         assert (df["year"] >= 2000).all(), "Años menores a 2000 detectados"
-        assert (
-            df["month"].between(1, 12)
-        ).all(), "Meses fuera del rango 1-12 detectados"
+        assert (df["month"].between(1, 12)).all(), "Meses fuera del rango 1-12 detectados"
         assert (df["value"] >= 0).all(), "Valores negativos en incidentes detectados"
         logging.info("Rangos de valores validados")
 
         # Validar sin duplicados
-        duplicates = df.duplicated(
-            subset=["borough", "major_category", "year", "month"]
-        ).sum()
+        duplicates = df.duplicated(subset=["borough", "major_category", "year", "month"]).sum()
         assert duplicates == 0, f"Se encontraron {duplicates} registros duplicados"
         logging.info("Sin registros duplicados")
 
         # Validar formato de fechas
-        assert (
-            df["date"].dtype == "datetime64[ns]"
-        ), "date debe estar en formato datetime"
+        assert df["date"].dtype == "datetime64[ns]", "date debe estar en formato datetime"
         logging.info("Formato de fechas validado")
 
         logging.info("=" * 70)
-        logging.info(
-            "VALIDACIÓN EXITOSA: Los datos cumplen todas las reglas de calidad"
-        )
+        logging.info("VALIDACIÓN EXITOSA: Los datos cumplen todas las reglas de calidad")
         logging.info("=" * 70)
         return True
 

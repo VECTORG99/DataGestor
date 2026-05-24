@@ -64,13 +64,9 @@ def load_to_supabase(df: pd.DataFrame) -> bool:
         engine = create_engine(db_url)
 
         # Insertar en base de datos. if_exists='replace' sobrescribe la tabla para la demo.
-        df.to_sql(
-            name="london_crime_aggregated", con=engine, if_exists="replace", index=False
-        )
+        df.to_sql(name="london_crime_aggregated", con=engine, if_exists="replace", index=False)
 
-        logging.info(
-            "Carga completada exitosamente en la tabla 'london_crime_aggregated'."
-        )
+        logging.info("Carga completada exitosamente en la tabla 'london_crime_aggregated'.")
         return True
 
     except Exception as e:

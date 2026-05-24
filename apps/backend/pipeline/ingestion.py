@@ -34,9 +34,7 @@ def ingest_data_from_bigquery() -> pd.DataFrame:
                 "Descarga el archivo JSON desde Google Cloud Console y colócalo en config/."
             )
 
-        credentials = service_account.Credentials.from_service_account_file(
-            credentials_path
-        )
+        credentials = service_account.Credentials.from_service_account_file(credentials_path)
         client = bigquery.Client(project="london-crime-491323", credentials=credentials)
 
         logging.info("Autenticado con Google Cloud")

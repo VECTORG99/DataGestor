@@ -50,9 +50,7 @@ def sample_raw_df() -> pd.DataFrame:
 def sample_clean_df() -> pd.DataFrame:
     return pd.DataFrame(
         {
-            "borough": pd.array(
-                ["City of London", "Westminster", "Camden"], dtype="string"
-            ),
+            "borough": pd.array(["City of London", "Westminster", "Camden"], dtype="string"),
             "major_category": pd.array(
                 [
                     "Theft and Handling",
@@ -61,9 +59,7 @@ def sample_clean_df() -> pd.DataFrame:
                 ],
                 dtype="string",
             ),
-            "minor_category": pd.array(
-                ["Pickpocketing", "Assault", "Shoplifting"], dtype="string"
-            ),
+            "minor_category": pd.array(["Pickpocketing", "Assault", "Shoplifting"], dtype="string"),
             "value": pd.array([10.0, 5.0, 0.0], dtype="float64"),
             "year": pd.array([2016, 2015, 2016], dtype="Int64"),
             "month": pd.array([1, 12, 1], dtype="Int64"),
