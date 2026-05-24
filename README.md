@@ -4,7 +4,7 @@
 
 ---
 **Proyecto limpio y automatizado. Frontend React + Material UI leyendo directamente de Supabase.**
-- Deploy preparado para Docker Compose (local/producción) y Github Pages (estático, solo frontend).
+- Deploy preparado para Docker Compose (local/producción).
 - Acceso seguro: nunca necesitas exponer credenciales privadas en el frontend.
 - Arquitectura clara: backend Python opcional, frontend desacoplado, datos en Supabase.
 - Repositorio: https://github.com/VECTORG99/DataGestor
@@ -49,11 +49,11 @@
 - Docker Compose: Orquestación automática de frontend + backend (pipeline) + db.
 - Deploy:
   - Local: Nginx sirve la build de React.
-  - Producción: Opcional despliegue estático en Github Pages (consume Supabase directamente, no requiere backend ni db propios).
+  - Producción: Solo se necesita la URL y ANON_KEY de Supabase en el frontend (sin backend ni DB local).
 
 ### 5. Automatización y Ciclo DevOps
 - Docker Compose: Reproduce y automatiza todo el stack localmente.
-- CI/CD: Workflow de backend CI (black + flake8) y workflow para deploy a Github Pages.
+- CI/CD: Workflow de backend CI (black + flake8 + pytest).
 - Limpieza y mantenimiento: Scripts/indicaciones para limpiar nodos, dependencias y mantener el entorno reproducible.
 
 ---
@@ -130,65 +130,16 @@ DataGestor/
 │   ├── frontend.Dockerfile
 │   └── docker-compose.yml
 ├── .github/workflows/      # CI/CD
-│   ├── ci-backend.yml      # Lint + test del backend
-│   └── deploy.yml          # Deploy a Github Pages
+│   └── ci-backend.yml      # Lint + test del backend
 ├── requirements.txt
 └── README.md
 ```
-
-## Despliegue en Github Pages
-
-El frontend es una SPA 100% estática que puede funcionar sin backend ni Docker. Para desplegar:
-
-```bash
-cd apps/frontend
-npm install
-npm run build
-```
-
-Esto genera `apps/frontend/dist/`. Luego puedes:
-
-1. **Subir manualmente** la carpeta `dist/` a la rama `gh-pages`
-2. **Usar el workflow incluido** en `.github/workflows/deploy.yml` — configúralo agregando los secrets `VITE_SUPABASE_URL` y `VITE_SUPABASE_ANON_KEY` en tu repositorio de GitHub.
-
-```yaml
-# .github/workflows/deploy.yml (ya incluido en el repo)
-name: Deploy React App to GitHub Pages
-on:
-  push:
-    branches: [master]
-jobs:
-  build-and-deploy:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-      - run: |
-          cd apps/frontend
-          npm ci
-          echo "VITE_SUPABASE_URL=${{ secrets.VITE_SUPABASE_URL }}" >> .env
-          echo "VITE_SUPABASE_ANON_KEY=${{ secrets.VITE_SUPABASE_ANON_KEY }}" >> .env
-          npm run build
-      - uses: peaceiris/actions-gh-pages@v4
-        with:
-          personal_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./apps/frontend/dist
-```
-
-3. Configurar Github Pages en **Settings → Pages** para servir desde `gh-pages`.
-
-> El backend solo es necesario para procesamiento. En producción basta la URL y ANON_KEY de Supabase en el frontend (sin backend ni DB local).
-
----
 
 ## CI/CD en GitHub Actions
 
 | Workflow | Archivo | Disparo |
 |---|---|---|
 | Backend CI | `.github/workflows/ci-backend.yml` | Push/PR a `master` |
-| Deploy Pages | `.github/workflows/deploy.yml` | Push a `master` |
 
 El backend CI ejecuta:
 - `black --check apps/backend/` (formato)
