@@ -1,10 +1,10 @@
 # Dockerfile para React frontend
 FROM node:20-alpine AS build
 WORKDIR /app
-COPY package*.json ./
-COPY .env.local ./
+COPY apps/frontend/package*.json ./
+COPY apps/frontend/.env.local ./
 RUN npm install
-COPY . .
+COPY apps/frontend/ .
 RUN npm run build
 
 FROM nginx:alpine

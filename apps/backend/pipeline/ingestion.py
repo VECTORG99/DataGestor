@@ -23,12 +23,12 @@ def ingest_data_from_bigquery() -> pd.DataFrame:
     
     try:
         # Cargar credenciales desde el archivo JSON de Google Cloud
-        credentials_path = os.environ.get('GOOGLE_APPLICATION_CREDENTIALS', 'credentials.json')
+        credentials_path = os.environ.get('GOOGLE_APPLICATION_CREDENTIALS', 'config/credentials.json')
         
         if not os.path.exists(credentials_path):
             raise FileNotFoundError(
                 f"Archivo de credenciales no encontrado: {credentials_path}\n"
-                "Descarga el archivo JSON desde Google Cloud Console y colócalo en la raíz del proyecto."
+                "Descarga el archivo JSON desde Google Cloud Console y colócalo en config/."
             )
         
         credentials = service_account.Credentials.from_service_account_file(credentials_path)

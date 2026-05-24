@@ -69,17 +69,17 @@ Se ha implementado una arquitectura **Lakehouse** sobre la plataforma Google Clo
 
 ## 3. Instrucciones rápidas de Instalación y Uso
 
-1. Copia tus credenciales públicas de Supabase (URL y ANON_KEY) en `frontend/.env.local`.
-2. (Opcional) Coloca credenciales GCP en `src/credentials.json` si ejecutas pipeline backend DataOps.
+1. Copia tus credenciales públicas de Supabase (URL y ANON_KEY) en `apps/frontend/.env.local`.
+2. (Opcional) Coloca credenciales GCP en `config/credentials.json` si ejecutas pipeline backend DataOps.
 3. Levanta todo con Docker Compose:
    ```bash
-   docker-compose up --build -d
+   docker-compose -f infra/docker-compose.yml up --build -d
    ```
 4. Accede a http://localhost:5173 en tu navegador para ver tus datos limpios.
 
 5. (Opcional, backend/pipeline):
    ```bash
-   docker exec -it london_crime_app python src/pipeline_dataops.py
+   docker exec -it london_crime_app python apps/backend/cli/pipeline_dataops.py
    ```
 
 ## 4. Estructura del Proyecto (Actualizada)
@@ -87,18 +87,18 @@ Se ha implementado una arquitectura **Lakehouse** sobre la plataforma Google Clo
 ```
 DataGestor/
 ├── docs/                  # Documentación técnica 
-├── logs/                  # Logs backend/pipeline
-├── src/                   # Código Python: pipeline, limpieza, carga, tests
-│    └── credentials.json  # (no subir a git)
-├── frontend/              # Frontend React para Supabase
-│    ├── src/              # Código fuente React
-│    ├── Dockerfile        # Imagen nginx + build React
-│    ├── .env.local        # Credenciales públicas supabase
-│    ├── vite.config.js
-│    ├── package.json / lock.json
-│    └── ...
-├── Dockerfile             # Backend Python principal
-├── docker-compose.yml     # Orquesta app/db/frontend React
+├── apps/                  # Apps (backend + frontend)
+│    ├── backend/          # Código Python: pipeline, limpieza, carga, tests
+│    └── frontend/         # Frontend React para Supabase
+├── config/                # Configuración local (no subir a git)
+│    └── credentials.json
+├── data/                  # Logs y outputs locales
+│    ├── logs/
+│    └── outputs/
+├── infra/                 # Infraestructura (Dockerfiles/Compose)
+│    ├── backend.Dockerfile
+│    ├── frontend.Dockerfile
+│    └── docker-compose.yml
 ├── requirements.txt
 └── README.md
 ```
@@ -107,11 +107,11 @@ DataGestor/
 
 1. Construye el frontend localmente:
     ```bash
-    cd frontend
+    cd apps/frontend
     npm install
     npm run build
     ```
-    Esto deja `/frontend/dist/` listo para deploy.
+    Esto deja `/apps/frontend/dist/` listo para deploy.
 
 2. Sube a la rama `gh-pages`. Lo más fácil: usa [peaceiris/actions-gh-pages](https://github.com/peaceiris/actions-gh-pages) en Github Actions:
 
@@ -134,17 +134,17 @@ DataGestor/
               node-version: 20
           - name: Install dependencies
             run: |
-              cd frontend
+              cd apps/frontend
               npm ci
           - name: Build
             run: |
-              cd frontend
+              cd apps/frontend
               npm run build
           - name: Deploy to Github Pages
             uses: peaceiris/actions-gh-pages@v4
             with:
               personal_token: ${{ secrets.GITHUB_TOKEN }}
-              publish_dir: ./frontend/dist
+              publish_dir: ./apps/frontend/dist
     ```
 3. Configura Pages en el repo para servir desde la rama gh-pages.
 
@@ -156,7 +156,7 @@ DataGestor/
 ## Limpieza de residuos
 
 No quedan archivos basura/patrones demo de frameworks. Si ejecutas local y deseas limpiar espacio:
-Ve a /frontend y ejecuta:
+Ve a /apps/frontend y ejecuta:
 ```
 rm -rf node_modules
 ```

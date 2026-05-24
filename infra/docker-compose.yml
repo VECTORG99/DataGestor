@@ -5,10 +5,12 @@ version: '3.8'
 services:
   # Servicio de Aplicación (Python + GCloud SDK)
   app:
-    build: .
+    build:
+      context: ..
+      dockerfile: infra/backend.Dockerfile
     container_name: london_crime_app
     volumes:
-      - .:/app
+      - ..:/app
       # Montaje opcional para credenciales locales de GCP si se desea
       - ~/.config/gcloud:/root/.config/gcloud 
     environment:
@@ -38,13 +40,13 @@ services:
 
   frontend:
     build:
-      context: ./frontend
-      dockerfile: Dockerfile
+      context: ..
+      dockerfile: infra/frontend.Dockerfile
     container_name: datagestor-frontend
     ports:
       - "5173:80"
     env_file:
-      - ./frontend/.env.local
+      - ../apps/frontend/.env.local
     restart: unless-stopped
     networks:
       - datagestor-net
@@ -54,4 +56,3 @@ volumes:
 
 networks:
   datagestor-net:
-

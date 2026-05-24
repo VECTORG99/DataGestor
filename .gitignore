@@ -9,12 +9,17 @@ ENV/
 
 # Credenciales y Configuración (Seguridad)
 .env
-*.json
+config/credentials.json
 credentials/
 
 # Docker
 .docker/
 docker-compose.override.yml
+
+# Data outputs
+data/
+data/logs/
+data/outputs/
 
 # Bases de Datos (Volúmenes)
 pgdata/

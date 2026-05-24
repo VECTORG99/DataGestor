@@ -1,28 +1,36 @@
 import os
 import logging
+import sys
+from pathlib import Path
+
 from dotenv import load_dotenv
 
-from ingestion import ingest_data_from_bigquery
-from cleaning import clean_and_transform_data, validate_data_quality
-from loading import load_to_supabase
+ROOT_DIR = Path(__file__).resolve().parents[3]
+if str(ROOT_DIR) not in sys.path:
+    sys.path.insert(0, str(ROOT_DIR))
+
+from apps.backend.pipeline.ingestion import ingest_data_from_bigquery
+from apps.backend.pipeline.cleaning import clean_and_transform_data, validate_data_quality
+from apps.backend.pipeline.loading import load_to_supabase
 
 # Autenticamos nuestra sesión con la cuenta de Google
 # Configura la variable de entorno para credenciales JSON
-credentials_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "credentials.json")
-if os.path.exists(credentials_path):
-    os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = credentials_path
+credentials_path = ROOT_DIR / "config" / "credentials.json"
+if credentials_path.exists():
+    os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = str(credentials_path)
     print("Credenciales de Google Cloud configuradas")
 else:
-    print("[WARNING] credentials.json no encontrado en la raíz del proyecto")
-    print("   Descarga tus credenciales de Google Cloud Console y colócalo en la raíz")
+    print("[WARNING] credentials.json no encontrado en config/")
+    print("   Descarga tus credenciales de Google Cloud Console y colócalo en config/")
 
 # Configurar logs para guardar evidencia
-os.makedirs("logs", exist_ok=True)
+log_dir = ROOT_DIR / "data" / "logs"
+log_dir.mkdir(parents=True, exist_ok=True)
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(message)s",
     handlers=[
-        logging.FileHandler("logs/pipeline.log"),
+        logging.FileHandler(str(log_dir / "pipeline.log")),
         logging.StreamHandler()
     ]
 )
@@ -36,7 +44,7 @@ def main():
     4. Carga en Supabase
     """
     logging.info("--- INICIANDO PIPELINE DATAOPS ---")
-    load_dotenv()
+    load_dotenv(dotenv_path=ROOT_DIR / ".env")
     
     try:
         # 1. INGESTA
