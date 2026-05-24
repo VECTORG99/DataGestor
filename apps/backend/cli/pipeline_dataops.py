@@ -10,14 +10,17 @@ if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
 
 from apps.backend.pipeline.ingestion import ingest_data_from_bigquery
-from apps.backend.pipeline.cleaning import clean_and_transform_data, validate_data_quality
+from apps.backend.pipeline.cleaning import (
+    clean_and_transform_data,
+    validate_data_quality,
+)
 from apps.backend.pipeline.loading import load_to_supabase, save_clean_data
 
 # Autenticamos nuestra sesión con la cuenta de Google
 # Configura la variable de entorno para credenciales JSON
 credentials_path = ROOT_DIR / "config" / "credentials.json"
 if credentials_path.exists():
-    os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = str(credentials_path)
+    os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = str(credentials_path)
     print("Credenciales de Google Cloud configuradas")
 else:
     print("[WARNING] credentials.json no encontrado en config/")
@@ -31,9 +34,10 @@ logging.basicConfig(
     format="%(asctime)s [%(levelname)s] %(message)s",
     handlers=[
         logging.FileHandler(str(log_dir / "pipeline.log")),
-        logging.StreamHandler()
-    ]
+        logging.StreamHandler(),
+    ],
 )
+
 
 def main():
     """
@@ -46,29 +50,30 @@ def main():
     """
     logging.info("--- INICIANDO PIPELINE DATAOPS ---")
     load_dotenv(dotenv_path=ROOT_DIR / ".env")
-    
+
     try:
         # 1. INGESTA
         df = ingest_data_from_bigquery()
-        
+
         # 2. LIMPIEZA Y TRANSFORMACIÓN
         df_agrupado = clean_and_transform_data(df)
-        
+
         # 3. VALIDACIÓN
         validate_data_quality(df_agrupado)
-        
+
         # 4. GUARDADO LOCAL
         output_dir = ROOT_DIR / "data" / "processed"
         save_clean_data(df_agrupado, output_dir)
-        
+
         # 5. CARGA
         load_to_supabase(df_agrupado)
-        
+
         logging.info("--- PIPELINE DATAOPS FINALIZADO CON ÉXITO ---")
-        
+
     except Exception as e:
         logging.error(f"Pipeline falló: {e}")
         return
+
 
 if __name__ == "__main__":
     main()

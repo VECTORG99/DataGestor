@@ -21,6 +21,7 @@ from apps.backend.pipeline.cleaning import (
 # standardize_column_names
 # ---------------------------------------------------------------------------
 
+
 class TestStandardizeColumnNames:
     def test_converts_to_snake_case(self):
         df = pd.DataFrame({"Borough Name": [1], "Major-Category": [2]})
@@ -37,6 +38,7 @@ class TestStandardizeColumnNames:
 # handle_null_values
 # ---------------------------------------------------------------------------
 
+
 class TestHandleNullValues:
     def test_removes_rows_with_null_in_critical_columns(self, sample_raw_df):
         result = handle_null_values(sample_raw_df)
@@ -45,13 +47,15 @@ class TestHandleNullValues:
         assert result["value"].notna().all()
 
     def test_removes_null_string_values(self):
-        df = pd.DataFrame({
-            "borough": ["City of London", "NULL", "Unknown"],
-            "major_category": ["Theft", "Burglary", "Violence"],
-            "value": [1.0, 2.0, 3.0],
-            "year": [2016, 2016, 2016],
-            "month": [1, 2, 3],
-        })
+        df = pd.DataFrame(
+            {
+                "borough": ["City of London", "NULL", "Unknown"],
+                "major_category": ["Theft", "Burglary", "Violence"],
+                "value": [1.0, 2.0, 3.0],
+                "year": [2016, 2016, 2016],
+                "month": [1, 2, 3],
+            }
+        )
         result = handle_null_values(df)
         assert len(result) == 1
         assert result.iloc[0]["borough"] == "City of London"
@@ -60,6 +64,7 @@ class TestHandleNullValues:
 # ---------------------------------------------------------------------------
 # validate_data_types
 # ---------------------------------------------------------------------------
+
 
 class TestValidateDataTypes:
     def test_converts_year_to_int64(self, sample_raw_df):
@@ -84,6 +89,7 @@ class TestValidateDataTypes:
 # validate_value_ranges
 # ---------------------------------------------------------------------------
 
+
 class TestValidateValueRanges:
     def test_removes_invalid_months(self, sample_raw_df):
         df = sample_raw_df.dropna(subset=["year", "month", "value"])
@@ -91,10 +97,15 @@ class TestValidateValueRanges:
         assert (result["month"].between(1, 12)).all()
 
     def test_removes_negative_values(self):
-        df = pd.DataFrame({
-            "borough": ["X"], "major_category": ["Y"],
-            "value": [-5], "year": [2016], "month": [1],
-        })
+        df = pd.DataFrame(
+            {
+                "borough": ["X"],
+                "major_category": ["Y"],
+                "value": [-5],
+                "year": [2016],
+                "month": [1],
+            }
+        )
         result = validate_value_ranges(df)
         assert len(result) == 0
 
@@ -103,23 +114,28 @@ class TestValidateValueRanges:
 # normalize_text_fields
 # ---------------------------------------------------------------------------
 
+
 class TestNormalizeTextFields:
     def test_title_case_and_strip(self):
-        df = pd.DataFrame({
-            "borough": ["  city of london  "],
-            "major_category": ["theft and handling"],
-            "minor_category": ["pickpocketing"],
-        })
+        df = pd.DataFrame(
+            {
+                "borough": ["  city of london  "],
+                "major_category": ["theft and handling"],
+                "minor_category": ["pickpocketing"],
+            }
+        )
         result = normalize_text_fields(df)
         # title case + borough correction: "City Of London" -> "City of London"
         assert result["borough"].iloc[0] == "City of London"
 
     def test_borough_corrections(self):
-        df = pd.DataFrame({
-            "borough": ["Kensington And Chelsea"],
-            "major_category": ["Theft"],
-            "minor_category": ["Pickpocketing"],
-        })
+        df = pd.DataFrame(
+            {
+                "borough": ["Kensington And Chelsea"],
+                "major_category": ["Theft"],
+                "minor_category": ["Pickpocketing"],
+            }
+        )
         result = normalize_text_fields(df)
         assert result["borough"].iloc[0] == "Kensington and Chelsea"
 
@@ -128,20 +144,23 @@ class TestNormalizeTextFields:
 # detect_and_remove_duplicates
 # ---------------------------------------------------------------------------
 
+
 class TestDetectAndRemoveDuplicates:
     def test_removes_exact_duplicates(self, sample_clean_df_with_duplicates):
         result = detect_and_remove_duplicates(sample_clean_df_with_duplicates)
         assert len(result) == 2  # City of London aparece solo una vez
 
     def test_removes_subset_duplicates(self):
-        df = pd.DataFrame({
-            "borough": ["A", "A", "B"],
-            "major_category": ["X", "X", "Y"],
-            "minor_category": ["foo", "bar", "baz"],
-            "value": [1, 2, 3],
-            "year": [2016, 2016, 2015],
-            "month": [1, 1, 12],
-        })
+        df = pd.DataFrame(
+            {
+                "borough": ["A", "A", "B"],
+                "major_category": ["X", "X", "Y"],
+                "minor_category": ["foo", "bar", "baz"],
+                "value": [1, 2, 3],
+                "year": [2016, 2016, 2015],
+                "month": [1, 1, 12],
+            }
+        )
         result = detect_and_remove_duplicates(df)
         assert len(result) == 2  # A/X/2016/1 duplicado, conserva el primero
 
@@ -149,6 +168,7 @@ class TestDetectAndRemoveDuplicates:
 # ---------------------------------------------------------------------------
 # create_date_column
 # ---------------------------------------------------------------------------
+
 
 class TestCreateDateColumn:
     def test_creates_date_from_year_month(self):
@@ -162,6 +182,7 @@ class TestCreateDateColumn:
 # ---------------------------------------------------------------------------
 # detect_outliers
 # ---------------------------------------------------------------------------
+
 
 class TestDetectOutliers:
     def test_detects_outliers_with_iqr(self):
@@ -180,29 +201,55 @@ class TestDetectOutliers:
 # remove_unnecessary_columns
 # ---------------------------------------------------------------------------
 
+
 class TestRemoveUnnecessaryColumns:
     def test_keeps_only_expected_columns(self):
-        df = pd.DataFrame({
-            "borough": ["A"], "major_category": ["B"], "minor_category": ["C"],
-            "year": [2016], "month": [1], "value": [10], "date": [Timestamp("2016-01-01")],
-            "trash": ["x"], "lsoa_code": ["E01"],
-        })
+        df = pd.DataFrame(
+            {
+                "borough": ["A"],
+                "major_category": ["B"],
+                "minor_category": ["C"],
+                "year": [2016],
+                "month": [1],
+                "value": [10],
+                "date": [Timestamp("2016-01-01")],
+                "trash": ["x"],
+                "lsoa_code": ["E01"],
+            }
+        )
         result = remove_unnecessary_columns(df)
         assert "trash" not in result.columns
         assert "lsoa_code" not in result.columns
-        assert set(result.columns) == {"borough", "major_category", "minor_category", "year", "month", "value", "date"}
+        assert set(result.columns) == {
+            "borough",
+            "major_category",
+            "minor_category",
+            "year",
+            "month",
+            "value",
+            "date",
+        }
 
 
 # ---------------------------------------------------------------------------
 # clean_and_transform_data  (integración)
 # ---------------------------------------------------------------------------
 
+
 class TestCleanAndTransformData:
     def test_full_pipeline_returns_clean_dataframe(self, sample_raw_df):
         result = clean_and_transform_data(sample_raw_df)
         assert not result.empty
         assert result.isnull().sum().sum() == 0
-        for col in ["borough", "major_category", "minor_category", "year", "month", "value", "date"]:
+        for col in [
+            "borough",
+            "major_category",
+            "minor_category",
+            "year",
+            "month",
+            "value",
+            "date",
+        ]:
             assert col in result.columns
         assert (result["month"].between(1, 12)).all()
         assert (result["value"] >= 0).all()
@@ -216,6 +263,7 @@ class TestCleanAndTransformData:
 # validate_data_quality
 # ---------------------------------------------------------------------------
 
+
 class TestValidateDataQuality:
     def test_passes_for_clean_dataframe(self, sample_clean_df):
         assert validate_data_quality(sample_clean_df) is True
@@ -223,6 +271,7 @@ class TestValidateDataQuality:
     def test_raises_for_missing_column(self, sample_clean_df):
         bad = sample_clean_df.drop(columns=["date"])
         import pytest as _pytest
+
         with _pytest.raises(AssertionError):
             validate_data_quality(bad)
 
@@ -230,5 +279,6 @@ class TestValidateDataQuality:
         bad = sample_clean_df.copy()
         bad.loc[0, "borough"] = None
         import pytest as _pytest
+
         with _pytest.raises(AssertionError):
             validate_data_quality(bad)

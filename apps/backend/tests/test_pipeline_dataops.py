@@ -9,7 +9,9 @@ def test_import_pipeline_main():
 def test_env_variable(monkeypatch):
     monkeypatch.setenv("GOOGLE_APPLICATION_CREDENTIALS", "dummy.json")
     from apps.backend.cli.pipeline_dataops import main
+
     assert callable(main)
+
 
 # Dummy test to always pass
 def test_sanity():
