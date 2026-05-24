@@ -16,7 +16,6 @@ from apps.backend.pipeline.cleaning import (
     validate_data_quality,
 )
 
-
 # ---------------------------------------------------------------------------
 # standardize_column_names
 # ---------------------------------------------------------------------------

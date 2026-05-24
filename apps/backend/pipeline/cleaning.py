@@ -9,7 +9,6 @@ import pandas as pd
 import numpy as np
 from datetime import datetime
 
-
 # Configuración de valores considerados como nulos
 NULL_VALUES = {
     None,
