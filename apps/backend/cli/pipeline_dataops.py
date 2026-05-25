@@ -46,7 +46,7 @@ def main():
     2. Limpieza y transformación
     3. Validación de calidad
     4. Guardado local en data/processed/
-    5. Carga en Supabase
+    5. Carga en Supabase (opcional)
     """
     logging.info("--- INICIANDO PIPELINE DATAOPS ---")
     load_dotenv(dotenv_path=ROOT_DIR / ".env")
@@ -65,8 +65,12 @@ def main():
         output_dir = ROOT_DIR / "data" / "processed"
         save_clean_data(df_agrupado, output_dir)
 
-        # 5. CARGA
-        load_to_supabase(df_agrupado)
+        # 5. CARGA A SUPABASE (opcional - si SUPABASE_DB_URL está configurado)
+        try:
+            load_to_supabase(df_agrupado)
+        except Exception as e:
+            logging.warning(f"No se pudo cargar a Supabase: {e}")
+            logging.warning("El pipeline continúa. Verifica la configuración en .env")
 
         logging.info("--- PIPELINE DATAOPS FINALIZADO CON ÉXITO ---")
 

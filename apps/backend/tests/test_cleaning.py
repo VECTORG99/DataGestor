@@ -154,13 +154,15 @@ class TestDetectAndRemoveDuplicates:
                 "borough": ["A", "A", "B"],
                 "major_category": ["X", "X", "Y"],
                 "minor_category": ["foo", "bar", "baz"],
-                "value": [1, 2, 3],
+                "total_crimes": [1, 2, 3],
                 "year": [2016, 2016, 2015],
                 "month": [1, 1, 12],
             }
         )
         result = detect_and_remove_duplicates(df)
-        assert len(result) == 2  # A/X/2016/1 duplicado, conserva el primero
+        # Only completely identical rows are removed by this function
+        # Aggregation happens later in aggregate_crime_data()
+        assert len(result) == 3
 
 
 # ---------------------------------------------------------------------------
@@ -184,7 +186,7 @@ class TestCreateDateColumn:
 
 class TestDetectOutliers:
     def test_detects_outliers_with_iqr(self):
-        df = pd.DataFrame({"value": [1, 2, 1, 2, 1, 2, 100]})
+        df = pd.DataFrame({"total_crimes": [1, 2, 1, 2, 1, 2, 100]})
         info = detect_outliers(df, method="iqr")
         assert info["outliers_detected"] >= 1
         assert 100 in info["outlier_values"]
@@ -209,7 +211,7 @@ class TestRemoveUnnecessaryColumns:
                 "minor_category": ["C"],
                 "year": [2016],
                 "month": [1],
-                "value": [10],
+                "total_crimes": [10],
                 "date": [Timestamp("2016-01-01")],
                 "trash": ["x"],
                 "lsoa_code": ["E01"],
@@ -224,7 +226,7 @@ class TestRemoveUnnecessaryColumns:
             "minor_category",
             "year",
             "month",
-            "value",
+            "total_crimes",
             "date",
         }
 
@@ -245,12 +247,12 @@ class TestCleanAndTransformData:
             "minor_category",
             "year",
             "month",
-            "value",
+            "total_crimes",
             "date",
         ]:
             assert col in result.columns
         assert (result["month"].between(1, 12)).all()
-        assert (result["value"] >= 0).all()
+        assert (result["total_crimes"] >= 0).all()
 
     def test_no_outliers_removed_by_default(self, sample_raw_df):
         result = clean_and_transform_data(sample_raw_df)

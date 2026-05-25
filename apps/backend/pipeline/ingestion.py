@@ -43,7 +43,7 @@ def ingest_data_from_bigquery() -> pd.DataFrame:
         query = """
             SELECT *
             FROM `bigquery-public-data.london_crime.crime_by_lsoa`
-            LIMIT 10000;
+            LIMIT 100000;
         """
 
         df = client.query(query).to_dataframe()

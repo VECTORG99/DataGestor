@@ -59,7 +59,7 @@ def sample_clean_df() -> pd.DataFrame:
                 dtype="string",
             ),
             "minor_category": pd.array(["Pickpocketing", "Assault", "Shoplifting"], dtype="string"),
-            "value": pd.array([10.0, 5.0, 0.0], dtype="float64"),
+            "total_crimes": pd.array([10.0, 5.0, 0.0], dtype="float64"),
             "year": pd.array([2016, 2015, 2016], dtype="Int64"),
             "month": pd.array([1, 12, 1], dtype="Int64"),
             "date": pd.to_datetime(["2016-01-01", "2015-12-01", "2016-01-01"]),
@@ -78,8 +78,9 @@ def sample_clean_df_with_duplicates() -> pd.DataFrame:
                 "Violence Against the Person",
             ],
             "minor_category": ["Pickpocketing", "Pickpocketing", "Assault"],
-            "value": [10, 10, 5],
+            "total_crimes": [10, 10, 5],
             "year": [2016, 2016, 2015],
             "month": [1, 1, 12],
+            "date": pd.to_datetime(["2016-01-01", "2016-01-01", "2015-12-01"]),
         }
     )

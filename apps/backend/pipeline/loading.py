@@ -31,6 +31,13 @@ def save_clean_data(df: pd.DataFrame, output_dir: Union[str, Path]) -> Dict[str,
     csv_path = output_dir / "london_crime_aggregated.csv"
     parquet_path = output_dir / "london_crime_aggregated.parquet"
 
+    # Verificar que las columnas esperadas estén presentes
+    expected_columns = ["borough", "major_category", "minor_category", "year", "month", "total_crimes", "date"]
+    if not all(col in df.columns for col in expected_columns):
+        missing = [col for col in expected_columns if col not in df.columns]
+        logging.error(f"Columnas faltantes en el DataFrame: {missing}")
+        raise ValueError(f"DataFrame no contiene las columnas esperadas: {missing}")
+
     df.to_csv(csv_path, index=False)
     logging.info("Datos guardados en %s", csv_path)
 
@@ -53,22 +60,60 @@ def load_to_supabase(df: pd.DataFrame) -> bool:
     Raises:
         Exception: Si hay error en la conexión o carga a base de datos
     """
-    logging.info("Fase 4: Carga a Supabase (PostgreSQL)...")
+    logging.info("=" * 70)
+    logging.info("FASE 4: CARGA A SUPABASE (PostgreSQL)")
+    logging.info("=" * 70)
 
     try:
+        # Obtener URL de conexión
         db_url = os.getenv("SUPABASE_DB_URL")
         if not db_url:
-            raise ValueError("No se encontró SUPABASE_DB_URL en el archivo .env")
+            logging.warning("No se encontró SUPABASE_DB_URL en el archivo .env")
+            logging.warning("La carga a Supabase se ha omitido.")
+            logging.info("Para habilitar la carga, configura SUPABASE_DB_URL en tu archivo .env")
+            return False
 
-        # SQLAlchemy usa 'postgresql://' (ya correcto en .env)
-        engine = create_engine(db_url)
+        logging.info(f"Conectando a Supabase...")
+        logging.info(f"Base de datos: {db_url.split('@')[-1].split('/')[0]}")
 
-        # Insertar en base de datos. if_exists='replace' sobrescribe la tabla para la demo.
-        df.to_sql(name="london_crime_aggregated", con=engine, if_exists="replace", index=False)
+        # Validar estructura de datos
+        expected_columns = ["borough", "major_category", "minor_category", "year", "month", "total_crimes", "date"]
+        if not all(col in df.columns for col in expected_columns):
+            missing = [col for col in expected_columns if col not in df.columns]
+            logging.error(f"Columnas faltantes en el DataFrame: {missing}")
+            raise ValueError(f"DataFrame no contiene las columnas esperadas: {missing}")
 
-        logging.info("Carga completada exitosamente en la tabla 'london_crime_aggregated'.")
+        # Crear engine con SQLAlchemy
+        engine = create_engine(db_url, echo=False)
+        
+        # Probar conexión
+        with engine.connect() as connection:
+            logging.info("Conexión establecida exitosamente")
+
+        # Insertar en base de datos. if_exists='replace' sobrescribe la tabla.
+        logging.info(f"Cargando {len(df)} registros en tabla 'london_crime_aggregated'...")
+        df.to_sql(
+            name="london_crime_aggregated",
+            con=engine,
+            if_exists="replace",
+            index=False,
+            method="multi",  # Método más rápido para inserciones masivas
+            chunksize=1000   # Insertar en lotes de 1000 registros
+        )
+
+        logging.info("=" * 70)
+        logging.info("Carga completada exitosamente en tabla 'london_crime_aggregated'")
+        logging.info("Registros cargados: {}".format(len(df)))
+        logging.info("=" * 70)
         return True
 
     except Exception as e:
-        logging.error(f"Error en la Carga de datos: {e}")
+        logging.error("=" * 70)
+        logging.error(f"ERROR en la Carga de datos: {e}")
+        logging.error("=" * 70)
+        logging.error("Posibles causas:")
+        logging.error("  1. SUPABASE_DB_URL no está configurado en .env")
+        logging.error("  2. Credenciales de Supabase son inválidas")
+        logging.error("  3. No hay conexión a Internet o Supabase está caído")
+        logging.error("  4. La tabla 'london_crime_aggregated' no puede ser creada")
         raise
