@@ -15,28 +15,8 @@ services:
       - ~/.config/gcloud:/root/.config/gcloud 
     environment:
       - PYTHONUNBUFFERED=1
-      - DB_HOST=db
-      - DB_NAME=london_safety_db
-      - DB_USER=admin
-      - DB_PASS=admin_pass
     tty: true
     stdin_open: true
-    depends_on:
-      - db
-
-  # Servicio de Base de Datos (PostgreSQL)
-  db:
-    image: postgres:15
-    container_name: london_crime_db
-    restart: always
-    environment:
-      POSTGRES_DB: london_safety_db
-      POSTGRES_USER: admin
-      POSTGRES_PASSWORD: admin_pass
-    ports:
-      - "5432:5432"
-    volumes:
-      - pgdata:/var/lib/postgresql/data
 
   frontend:
     build:
@@ -48,11 +28,3 @@ services:
     env_file:
       - ../apps/frontend/.env.local
     restart: unless-stopped
-    networks:
-      - datagestor-net
-
-volumes:
-  pgdata:
-
-networks:
-  datagestor-net:

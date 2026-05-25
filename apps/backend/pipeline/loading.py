@@ -32,7 +32,15 @@ def save_clean_data(df: pd.DataFrame, output_dir: Union[str, Path]) -> Dict[str,
     parquet_path = output_dir / "london_crime_aggregated.parquet"
 
     # Verificar que las columnas esperadas estén presentes
-    expected_columns = ["borough", "major_category", "minor_category", "year", "month", "total_crimes", "date"]
+    expected_columns = [
+        "borough",
+        "major_category",
+        "minor_category",
+        "year",
+        "month",
+        "total_crimes",
+        "date",
+    ]
     if not all(col in df.columns for col in expected_columns):
         missing = [col for col in expected_columns if col not in df.columns]
         logging.error(f"Columnas faltantes en el DataFrame: {missing}")
@@ -73,11 +81,19 @@ def load_to_supabase(df: pd.DataFrame) -> bool:
             logging.info("Para habilitar la carga, configura SUPABASE_DB_URL en tu archivo .env")
             return False
 
-        logging.info(f"Conectando a Supabase...")
+        logging.info("Conectando a Supabase...")
         logging.info(f"Base de datos: {db_url.split('@')[-1].split('/')[0]}")
 
         # Validar estructura de datos
-        expected_columns = ["borough", "major_category", "minor_category", "year", "month", "total_crimes", "date"]
+        expected_columns = [
+            "borough",
+            "major_category",
+            "minor_category",
+            "year",
+            "month",
+            "total_crimes",
+            "date",
+        ]
         if not all(col in df.columns for col in expected_columns):
             missing = [col for col in expected_columns if col not in df.columns]
             logging.error(f"Columnas faltantes en el DataFrame: {missing}")
@@ -85,9 +101,9 @@ def load_to_supabase(df: pd.DataFrame) -> bool:
 
         # Crear engine con SQLAlchemy
         engine = create_engine(db_url, echo=False)
-        
+
         # Probar conexión
-        with engine.connect() as connection:
+        with engine.connect():
             logging.info("Conexión establecida exitosamente")
 
         # Insertar en base de datos. if_exists='replace' sobrescribe la tabla.
@@ -98,7 +114,7 @@ def load_to_supabase(df: pd.DataFrame) -> bool:
             if_exists="replace",
             index=False,
             method="multi",  # Método más rápido para inserciones masivas
-            chunksize=1000   # Insertar en lotes de 1000 registros
+            chunksize=1000,  # Insertar en lotes de 1000 registros
         )
 
         logging.info("=" * 70)

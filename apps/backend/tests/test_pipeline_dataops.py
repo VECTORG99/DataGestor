@@ -11,8 +11,3 @@ def test_env_variable(monkeypatch):
     from apps.backend.cli.pipeline_dataops import main
 
     assert callable(main)
-
-
-# Dummy test to always pass
-def test_sanity():
-    assert 1 == 1

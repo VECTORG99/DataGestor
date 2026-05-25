@@ -10,8 +10,6 @@ ENV PYTHONUNBUFFERED 1
 # Instalar dependencias de sistema y herramientas necesarias
 RUN apt-get update && apt-get install -y \
     git \
-    libpq-dev \
-    gcc \
     && rm -rf /var/lib/apt/lists/*
 
 # Establecer el directorio de trabajo en el contenedor

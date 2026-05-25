@@ -1,3 +1,4 @@
+import pytest
 import pandas as pd
 from pandas import Timestamp
 
@@ -270,15 +271,13 @@ class TestValidateDataQuality:
 
     def test_raises_for_missing_column(self, sample_clean_df):
         bad = sample_clean_df.drop(columns=["date"])
-        import pytest as _pytest
 
-        with _pytest.raises(AssertionError):
+        with pytest.raises(AssertionError):
             validate_data_quality(bad)
 
     def test_raises_for_null_values(self, sample_clean_df):
         bad = sample_clean_df.copy()
         bad.loc[0, "borough"] = None
-        import pytest as _pytest
 
-        with _pytest.raises(AssertionError):
+        with pytest.raises(AssertionError):
             validate_data_quality(bad)

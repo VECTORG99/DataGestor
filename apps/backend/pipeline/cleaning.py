@@ -240,7 +240,7 @@ def aggregate_crime_data(df: pd.DataFrame) -> pd.DataFrame:
     """
     Agrupa registros por (borough, major_category, minor_category, year, month)
     y suma los valores de crímenes.
-    
+
     Múltiples incidentes del mismo tipo de crimen en la misma ubicación y período
     se consolidan sumando sus valores. Se mantiene el desglose por tipo de crimen.
 
@@ -255,22 +255,22 @@ def aggregate_crime_data(df: pd.DataFrame) -> pd.DataFrame:
 
     # Agrupar por ubicación, tipo de crimen y período, sumando los valores
     groupby_cols = ["borough", "major_category", "minor_category", "year", "month"]
-    
+
     if all(col in df.columns for col in groupby_cols):
-        df_aggregated = df.groupby(groupby_cols, as_index=False).agg({
-            "value": "sum"
-        })
-        
+        df_aggregated = df.groupby(groupby_cols, as_index=False).agg({"value": "sum"})
+
         # Renombrar 'value' a 'total_crimes'
         df_aggregated = df_aggregated.rename(columns={"value": "total_crimes"})
-        
+
         rows_aggregated = initial_rows - len(df_aggregated)
         if rows_aggregated > 0:
             logging.info(f"  {rows_aggregated} registros agregados (sumados en grupos)")
-            logging.info(f"  Total de grupos únicos (borough, category, year, month): {len(df_aggregated)}")
+            logging.info(
+                f"  Total de grupos únicos (borough, category, year, month): {len(df_aggregated)}"
+            )
         else:
             logging.info("  No había registros duplicados para agregar")
-        
+
         return df_aggregated
     else:
         logging.warning("  Columnas requeridas para agregación no encontradas")
@@ -334,7 +334,9 @@ def detect_outliers(df: pd.DataFrame, method: str = "iqr") -> dict:
         outlier_mask = (df["total_crimes"] < lower_bound) | (df["total_crimes"] > upper_bound)
 
     elif method == "zscore":
-        z_scores = np.abs((df["total_crimes"] - df["total_crimes"].mean()) / df["total_crimes"].std())
+        z_scores = np.abs(
+            (df["total_crimes"] - df["total_crimes"].mean()) / df["total_crimes"].std()
+        )
         outlier_mask = z_scores > 3
 
     else:
@@ -350,9 +352,9 @@ def detect_outliers(df: pd.DataFrame, method: str = "iqr") -> dict:
 
     if len(outlier_indices) > 0:
         logging.info(f"  {len(outlier_indices)} valores atípicos detectados (método: {method})")
-        logging.info(
-            f"  Rango típico: {df['total_crimes'].quantile(0.05):.0f} - {df['total_crimes'].quantile(0.95):.0f}"
-        )
+        q05 = df["total_crimes"].quantile(0.05)
+        q95 = df["total_crimes"].quantile(0.95)
+        logging.info(f"  Rango típico: {q05:.0f} - {q95:.0f}")
         logging.info(
             f"  Valores atípicos: min={min(outlier_values):.0f}, max={max(outlier_values):.0f}"
         )
@@ -395,13 +397,12 @@ def remove_unnecessary_columns(df: pd.DataFrame, keep_columns: list = None) -> p
     return df
 
 
-def clean_and_transform_data(df: pd.DataFrame, remove_outliers: bool = False) -> pd.DataFrame:
+def clean_and_transform_data(df: pd.DataFrame) -> pd.DataFrame:
     """
     Orquesta todo el proceso de limpieza y transformación del dataset.
 
     Args:
         df (pd.DataFrame): DataFrame con datos sin procesar
-        remove_outliers (bool): Si True, elimina los outliers detectados
 
     Returns:
         pd.DataFrame: DataFrame limpio y transformado
@@ -439,11 +440,8 @@ def clean_and_transform_data(df: pd.DataFrame, remove_outliers: bool = False) ->
         # 7. Crear columna de fecha
         df = create_date_column(df)
 
-        # 8. Detectar outliers
-        outliers_info = detect_outliers(df, method="iqr")
-        if remove_outliers and outliers_info["outliers_detected"] > 0:
-            df = df.drop(outliers_info["outlier_indices"])
-            logging.info(f"  Outliers eliminados: {outliers_info['outliers_detected']}")
+        # 8. Detectar outliers (solo reporta, no elimina)
+        detect_outliers(df, method="iqr")
 
         # 9. Eliminar columnas innecesarias
         df = remove_unnecessary_columns(df)
@@ -505,9 +503,7 @@ def validate_data_quality(df: pd.DataFrame) -> bool:
         logging.info("Tipos de datos validados")
 
         # Validar completitud (no nulos)
-        null_count = (
-            df[["borough", "year", "month", "total_crimes"]].isnull().sum().sum()
-        )
+        null_count = df[["borough", "year", "month", "total_crimes"]].isnull().sum().sum()
         assert null_count == 0, f"Existen {null_count} valores nulos en el dataset limpio"
         logging.info("Sin valores nulos en columnas críticas")
 
@@ -518,7 +514,9 @@ def validate_data_quality(df: pd.DataFrame) -> bool:
         logging.info("Rangos de valores validados")
 
         # Validar sin duplicados (usando los mismos campos de agrupación que en agregación)
-        duplicates = df.duplicated(subset=["borough", "major_category", "minor_category", "year", "month"]).sum()
+        duplicates = df.duplicated(
+            subset=["borough", "major_category", "minor_category", "year", "month"]
+        ).sum()
         assert duplicates == 0, f"Se encontraron {duplicates} registros duplicados"
         logging.info("Sin registros duplicados")
 
