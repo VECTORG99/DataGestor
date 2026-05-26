@@ -16,6 +16,8 @@
     "@emotion/styled": "^11.14.1",
     "@mui/material": "^9.0.1",
     "@supabase/supabase-js": "^2.106.1",
-    "@vitejs/plugin-react": "^6.0.2"
+    "@vitejs/plugin-react": "^6.0.2",
+    "chart.js": "^4.5.1",
+    "react-chartjs-2": "^5.3.1"
   }
 }

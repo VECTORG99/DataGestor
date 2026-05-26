@@ -73,10 +73,15 @@ DataOps aporta agilidad y automatización al ciclo de datos; PMBOK entrega la es
 - Seguridad: Uso exclusivo de `anon_key` (solo lectura en frontend).
 
 ### 4. Visualización & Consumo Frontend
-- Frontend React profesional:
-  - SPA creada con Vite y Material UI.
-  - Consulta Supabase con `@supabase/supabase-js` y muestra tabla dinámica.
-  - Opción para agregar más features (filtros, paginación, charts).
+- Dashboard React profesional:
+  - SPA creada con Vite, Material UI y Chart.js.
+  - Consulta Supabase con `@supabase/supabase-js`.
+  - KPIs: total crímenes, distrito líder, categoría principal, registros filtrados.
+  - Gráficos: barras por distrito, donut por categoría, línea de tendencia temporal, top 10 subcategorías.
+  - Filtros interactivos: distrito, categoría, año (actualizan todos los charts y tablas).
+  - Tabla heatmap: crímenes por distrito y año.
+  - Tabla detallada con datos crudos (primeros 100 registros).
+  - Diseño responsive, centrado y apilado verticalmente.
 - Docker Compose: Orquestación automática de frontend + backend (pipeline).
 - Deploy:
   - Local: Nginx sirve la build de React.
@@ -142,7 +147,7 @@ DataGestor/
 |   |   |-- pipeline/       #   ingestion, cleaning, loading, metrics
 |   |   |-- cli/            #   pipeline_dataops.py (entrypoint)
 |   |   |-- tests/          #   test_pipeline_dataops.py
-|   |-- frontend/           # React SPA (Vite + Material UI)
+|   |-- frontend/           # React SPA (Vite + Material UI + Chart.js)
 |       |-- src/            #   App.jsx, main.jsx
 |       |-- public/         #   Archivos estaticos
 |       |-- .env.local      #   Credenciales Supabase (no subir)
@@ -240,8 +245,9 @@ docker exec london_crime_app python apps/backend/cli/pipeline_dataops.py --demo
 - **Connection pooling**: Supabase usa PgBouncer para manejar cientos de conexiones concurrentes.
 
 ### Frontend
+- **Filtros**: selectores de distrito, categoría y año actualizan todos los gráficos y tablas en tiempo real.
 - **Caché**: implementar React Query o SWR para cachear respuestas de Supabase y evitar llamadas repetidas.
-- **Paginación**: en lugar de `LIMIT 200`, usar paginación server-side con `range()` de Supabase.
+- **Paginación**: en lugar de mostrar 100 registros, usar paginación server-side con `range()` de Supabase.
 - **CDN**: el build estático de Nginx puede servirse desde Cloudflare o cualquier CDN.
 
 ### Infraestructura
