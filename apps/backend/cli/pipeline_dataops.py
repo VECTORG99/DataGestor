@@ -66,7 +66,7 @@ def main():
         metrics.start_stage("ingesta")
         if args.demo:
             logging.info("=" * 70)
-            logging.info("FASE 1: INGESTA — MODO DEMO (datos sintéticos)")
+            logging.info("FASE 1: INGESTA - MODO DEMO (datos sintéticos)")
             logging.info("=" * 70)
             df = get_sample_data(n_rows=150)
         else:
@@ -98,9 +98,9 @@ def main():
 
         # 5. GUARDAR DATOS VALIDATED (después de validación, antes de limpieza)
         stage_manager.validate_and_save_validated(
-            df_agrupado, 
+            df_agrupado,
             filename="london_crime_validated",
-            validation_report_filename="validation_report"
+            validation_report_filename="validation_report",
         )
 
         # 6. GUARDADO LOCAL DE DATOS PROCESADOS
@@ -112,9 +112,7 @@ def main():
 
         # 7. GUARDAR DATOS PROCESSED (referencia de datos finales)
         stage_manager.save_processed_data(
-            df_agrupado, 
-            filename="london_crime_processed",
-            formats=["parquet", "csv"]
+            df_agrupado, filename="london_crime_processed", formats=["parquet", "csv"]
         )
 
         # 8. CARGA A SUPABASE (opcional - si SUPABASE_DB_URL está configurado)

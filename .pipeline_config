@@ -6,39 +6,39 @@ FASES DEL PIPELINE:
 ==================
 
 1. INGESTA (ingestion.py)
-   └─ Extrae datos de BigQuery: london.london_crime_by_lsoa
-   └─ Retorna: 100,000 registros sin procesar
+   \- Extrae datos de BigQuery: london.london_crime_by_lsoa
+   \- Retorna: 100,000 registros sin procesar
 
 2. LIMPIEZA Y TRANSFORMACIÓN (cleaning.py)
-   ├─ Estandarizar nombres de columnas (sin número de paso)
-   ├─ Paso 1: Manejar valores nulos
-   ├─ Paso 2: Validar y convertir tipos de datos
-   ├─ Paso 3: Validar rangos de valores
-   ├─ Paso 4: Normalizar campos de texto
-   ├─ Paso 5: Eliminar duplicados completamente idénticos
-   ├─ Paso 6: AGREGAR crímenes por (borough, major_category, minor_category, year, month)
-   │         └─ Suma los valores de incidentes
-   │         └─ Resultado: 16,609 registros únicos agregados
-   ├─ Paso 7: Crear columna de fecha
-   ├─ Paso 8: Detectar outliers (solo reporta, no elimina)
-   └─ Paso 9: Eliminar columnas innecesarias
+   |- Estandarizar nombres de columnas (sin número de paso)
+   |- Paso 1: Manejar valores nulos
+   |- Paso 2: Validar y convertir tipos de datos
+   |- Paso 3: Validar rangos de valores
+   |- Paso 4: Normalizar campos de texto
+   |- Paso 5: Eliminar duplicados completamente idénticos
+   |- Paso 6: AGREGAR crímenes por (borough, major_category, minor_category, year, month)
+   |         \- Suma los valores de incidentes
+   |         \- Resultado: 16,609 registros únicos agregados
+   |- Paso 7: Crear columna de fecha
+   |- Paso 8: Detectar outliers (solo reporta, no elimina)
+   \- Paso 9: Eliminar columnas innecesarias
 
 3. VALIDACIÓN (cleaning.py)
-   ├─ Verificar esquema de columnas
-   ├─ Verificar tipos de datos
-   ├─ Verificar completitud (sin nulos)
-   ├─ Verificar semántica (rangos válidos)
-   ├─ Verificar sin duplicados por (borough, major_category, minor_category, year, month)
-   └─ Verificar formato de fechas
+   |- Verificar esquema de columnas
+   |- Verificar tipos de datos
+   |- Verificar completitud (sin nulos)
+   |- Verificar semántica (rangos válidos)
+   |- Verificar sin duplicados por (borough, major_category, minor_category, year, month)
+   \- Verificar formato de fechas
 
 4. GUARDADO LOCAL (loading.py)
-   ├─ CSV: data/processed/london_crime_aggregated.csv
-   └─ Parquet: data/processed/london_crime_aggregated.parquet
+   |- CSV: data/processed/london_crime_aggregated.csv
+   \- Parquet: data/processed/london_crime_aggregated.parquet
 
 5. CARGA A SUPABASE (loading.py)
-   └─ Tabla: london_crime_aggregated
-   └─ Acción: if_exists='replace' (sobrescribe)
-   └─ Conexión: Via SUPABASE_DB_URL en .env
+   \- Tabla: london_crime_aggregated
+   \- Acción: if_exists='replace' (sobrescribe)
+   \- Conexión: Via SUPABASE_DB_URL en .env
 
 ====================================================================
 

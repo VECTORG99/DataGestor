@@ -1,4 +1,4 @@
-# Sistema de Inteligencia Territorial para la Seguridad Pública en Londres
+# Sistema de Inteligencia Territorial para la Seguridad Publica en Londres
 
 [![CI Backend](https://github.com/VECTORG99/DataGestor/actions/workflows/ci-backend.yml/badge.svg)](https://github.com/VECTORG99/DataGestor/actions/workflows/ci-backend.yml)
 
@@ -18,7 +18,7 @@ Ver [`SECURITY.md`](SECURITY.md) para el plan completo.
 - **Leyes**: GDPR (UE) y Ley 19.628 (Chile) aplicadas al tratamiento de datos.
 - **Cifrado en tránsito**: TLS 1.3 en todas las conexiones externas (Supabase, BigQuery).
 - **Cifrado en reposo**: AES-256 en Supabase y BigQuery por defecto.
-- **Control de acceso**: Row-Level Security (RLS) en Supabase — `anon_key` solo lectura, `service_role` escritura.
+- **Control de acceso**: Row-Level Security (RLS) en Supabase - `anon_key` solo lectura, `service_role` escritura.
 - **Secretos**: `.env`, `credentials.json` y `*.local` en `.gitignore`.
 
 ## Metodología
@@ -37,29 +37,30 @@ Se aplican los 5 grupos de procesos de **PMBOK**:
 | Monitoreo y Control | CI/CD (black, flake8, pytest), KPIs de latencia y calidad, logging estructurado |
 | Cierre | Documentación (README, SECURITY.md), repositorio GitHub, informe técnico |
 
-### ¿Por qué DataOps + PMBOK?
+### Por que DataOps + PMBOK?
 DataOps aporta agilidad y automatización al ciclo de datos; PMBOK entrega la estructura de gestión de proyectos. La combinación permite un proyecto predecible en plazos, repetible en ejecución y medible en calidad.
 
 ## Etapas del Pipeline
 
 ### 1. Ingesta y Limpieza de Datos
 - Origen: Dataset público `london_crime` (BigQuery)
-- Pipeline backend Python con 9 etapas de limpieza:
+- Pipeline backend Python con 10 etapas de limpieza:
 
 | # | Etapa | Función | Descripción |
 |---|-------|---------|-------------|
 | 1 | Estandarizar columnas | `standardize_column_names()` | Convierte nombres a snake_case |
 | 2 | Manejo de nulos | `handle_null_values()` | Elimina filas con nulos en columnas críticas; reconoce `NULL`, `Unknown`, `N/A` como nulos |
 | 3 | Validar tipos | `validate_data_types()` | Convierte `year`/`month` a `Int64`, `value` a `float64`, texto a `string` |
-| 4 | Validar rangos | `validate_value_ranges()` | Elimina meses ∉ [1,12], años < 2000, valores negativos |
+| 4 | Validar rangos | `validate_value_ranges()` | Elimina meses fuera de [1,12], anyos < 2000, valores negativos |
 | 5 | Normalizar texto | `normalize_text_fields()` | Elimina espacios, título capitalizado, corrige ortografía de boroughs |
-| 6 | Eliminar duplicados | `detect_and_remove_duplicates()` | Elimina duplicados exactos y por combinación `(borough, major_category, year, month)` |
-| 7 | Crear fecha | `create_date_column()` | Crea columna `date` unificada desde `year` + `month` |
-| 8 | Detectar outliers | `detect_outliers()` | Reporta valores atípicos (IQR/Z-score); no elimina por defecto |
-| 9 | Eliminar columnas | `remove_unnecessary_columns()` | Conserva solo columnas relevantes |
+| 6 | Eliminar duplicados | `detect_and_remove_duplicates()` | Elimina filas completamente idénticas (todas las columnas) |
+| 7 | Agregar crímenes | `aggregate_crime_data()` | Agrupa por `(borough, major_category, minor_category, year, month)` y suma valores |
+| 8 | Crear fecha | `create_date_column()` | Crea columna `date` unificada desde `year` + `month` |
+| 9 | Detectar outliers | `detect_outliers()` | Reporta valores atípicos (IQR/Z-score); no elimina por defecto |
+| 10 | Eliminar columnas | `remove_unnecessary_columns()` | Conserva solo columnas relevantes |
 
 - Generación del dataset limpio `london_crime_aggregated`.
-- Herramienta: Scripts en Python, ejecutables vía Docker (“london_crime_app”)
+- Herramienta: Scripts en Python, ejecutables vía Docker ("london_crime_app")
 - Output: Tabla en Supabase + archivos CSV/Parquet en `data/processed/`.
 
 ### 2. Carga a la Base de Datos Analítica
@@ -92,14 +93,14 @@ DataOps aporta agilidad y automatización al ciclo de datos; PMBOK entrega la es
 
 ```
 Dataset Bruto (BigQuery)
-     ↓
-Ingesta & Limpieza (Python, Docker)
-     ↓
+     |
+Ingesta y Limpieza (Python, Docker)
+     |
 Carga a Supabase
-     ↓
+     |
 Consulta Frontend (React SPA)
-     ↓
-Visualización Profesional
+     |
+Visualizacion Profesional
 ```
 ---
 
@@ -136,31 +137,33 @@ docker exec -it london_crime_app python apps/backend/cli/pipeline_dataops.py
 
 ```
 DataGestor/
-├── apps/                   # Aplicaciones
-│   ├── backend/            # Código Python (pipeline ETL)
-│   │   ├── pipeline/       #   ingestion, cleaning, loading, metrics
-│   │   ├── cli/            #   pipeline_dataops.py (entrypoint)
-│   │   └── tests/          #   test_pipeline_dataops.py
-│   └── frontend/           # React SPA (Vite + Material UI)
-│       ├── src/            #   App.jsx, main.jsx
-│       ├── public/         #   Archivos estáticos
-│       ├── .env.local      #   Credenciales Supabase (no subir)
-│       └── package.json
-├── config/                 # Configuración sensible (no subir a git)
-│   ├── .env.example        # Plantilla de variables de entorno
-│   └── credentials.json    # Credenciales GCP
-├── data/                   # Datos locales (no subir a git)
-│   ├── logs/               # Logs del pipeline
-│   ├── metrics/            # KPIs del pipeline (JSONL)
-│   └── processed/          # Datos limpios (CSV + Parquet) generados por el pipeline
-├── infra/                  # Infraestructura (Docker)
-│   ├── backend.Dockerfile
-│   ├── frontend.Dockerfile
-│   └── docker-compose.yml
-├── .github/workflows/      # CI/CD
-│   └── ci-backend.yml      # Lint + test del backend
-├── requirements.txt
-└── README.md
+|-- apps/                   # Aplicaciones
+|   |-- backend/            # Codigo Python (pipeline ETL)
+|   |   |-- pipeline/       #   ingestion, cleaning, loading, metrics
+|   |   |-- cli/            #   pipeline_dataops.py (entrypoint)
+|   |   |-- tests/          #   test_pipeline_dataops.py
+|   |-- frontend/           # React SPA (Vite + Material UI)
+|       |-- src/            #   App.jsx, main.jsx
+|       |-- public/         #   Archivos estaticos
+|       |-- .env.local      #   Credenciales Supabase (no subir)
+|       |-- package.json
+|-- config/                 # Configuracion sensible (no subir a git)
+|   |-- .env.example        # Plantilla de variables de entorno
+|   |-- credentials.json    # Credenciales GCP
+|-- data/                   # Datos locales (no subir a git)
+|   |-- raw/                # Datos originales sin procesar
+|   |-- validated/          # Datos validados (reporte de calidad)
+|   |-- logs/               # Logs del pipeline
+|   |-- metrics/            # KPIs del pipeline (JSONL)
+|   |-- processed/          # Datos limpios (CSV + Parquet) generados por el pipeline
+|-- infra/                  # Infraestructura (Docker)
+|   |-- backend.Dockerfile
+|   |-- frontend.Dockerfile
+|   |-- docker-compose.yml
+|-- .github/workflows/      # CI/CD
+|   |-- ci-backend.yml      # Lint + test del backend
+|-- requirements.txt
+|-- README.md
 ```
 
 ## CI/CD en GitHub Actions
@@ -208,7 +211,7 @@ El pipeline registra automáticamente métricas de cada ejecución:
 | KPI | Descripción | Ejemplo |
 |-----|-------------|---------|
 | Latencia | Duración por etapa (ingesta, limpieza, validación, guardado, carga) | `limpieza: 0.02s` |
-| Volumen | Registros iniciales → finales con % de reducción | `150 → 146 (2.7%)` |
+| Volumen | Registros iniciales -> finales con % de reduccion | `150 -> 146 (2.7%)` |
 | Completitud | % de datos no nulos en columnas críticas | `100.0%` |
 | Outliers | Valores atípicos detectados (IQR) | `7` |
 
@@ -217,9 +220,9 @@ Los KPIs se muestran al final del pipeline y se persisten en `data/metrics/pipel
 ```bash
 docker exec london_crime_app python apps/backend/cli/pipeline_dataops.py --demo
 # Al final muestra:
-# RESUMEN DE KPIs — PIPELINE DATAOPS
-#   Duración total:  7.27 seg
-#   Registros:        150 → 146 (2.7% reducción)
+# RESUMEN DE KPIs - PIPELINE DATAOPS
+#   Duracion total:  7.27 seg
+#   Registros:        150 -> 146 (2.7% reduccion)
 #   Completitud:      100.0%
 ```
 
@@ -248,7 +251,7 @@ docker exec london_crime_app python apps/backend/cli/pipeline_dataops.py --demo
 
 ### Manejo de anomalías
 - **Reintentos**: el pipeline reintenta conexiones fallidas a Supabase/BigQuery con backoff exponencial.
-- **Validación**: los outliers se detectan pero no se eliminan automáticamente — se reportan para decisión del analista.
+- **Validación**: los outliers se detectan pero no se eliminan automáticamente - se reportan para decisión del analista.
 - **Logs**: todos los errores se registran con timestamp y contexto para diagnóstico rápido.
 - **Alertas**: integrar con Slack o email cuando el pipeline falle o los KPIs estén fuera de rango esperado.
 
@@ -270,7 +273,7 @@ docker exec london_crime_app python apps/backend/cli/pipeline_dataops.py --demo
   ```bash
   cd apps/frontend && npm install
   ```
-- **credentials.json** y **.env** están en `.gitignore` — nunca se suben al repo.
+- **credentials.json** y **.env** están en `.gitignore` - nunca se suben al repo.
 - Para limpiar el entorno Docker:
   ```bash
   docker compose -f infra/docker-compose.yml down -v
