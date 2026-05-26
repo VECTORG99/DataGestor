@@ -21,6 +21,25 @@ Ver [`SECURITY.md`](SECURITY.md) para el plan completo.
 - **Control de acceso**: Row-Level Security (RLS) en Supabase — `anon_key` solo lectura, `service_role` escritura.
 - **Secretos**: `.env`, `credentials.json` y `*.local` en `.gitignore`.
 
+## Metodología
+
+### DataOps
+El proyecto sigue principios **DataOps**: integración continua (CI/CD con GitHub Actions), automatización del pipeline ETL (Docker Compose), monitoreo de calidad (validación estructural y semántica), y métricas de rendimiento (KPIs por ejecución). Esto permite ciclos cortos de retroalimentación y detección temprana de anomalías.
+
+### PMBOK
+Se aplican los 5 grupos de procesos de **PMBOK**:
+
+| Grupo | Aplicación en el proyecto |
+|-------|--------------------------|
+| Inicio | Identificación del problema: analizar datos de criminalidad en Londres para seguridad pública |
+| Planificación | WBS con etapas: ingesta, limpieza, validación, carga, visualización |
+| Ejecución | Implementación del pipeline Python + frontend React desplegado con Docker Compose |
+| Monitoreo y Control | CI/CD (black, flake8, pytest), KPIs de latencia y calidad, logging estructurado |
+| Cierre | Documentación (README, SECURITY.md), repositorio GitHub, informe técnico |
+
+### ¿Por qué DataOps + PMBOK?
+DataOps aporta agilidad y automatización al ciclo de datos; PMBOK entrega la estructura de gestión de proyectos. La combinación permite un proyecto predecible en plazos, repetible en ejecución y medible en calidad.
+
 ## Etapas del Pipeline
 
 ### 1. Ingesta y Limpieza de Datos
@@ -205,6 +224,35 @@ docker exec london_crime_app python apps/backend/cli/pipeline_dataops.py --demo
 #   Registros:        150 → 146 (2.7% reducción)
 #   Completitud:      100.0%
 ```
+
+---
+
+## Escalabilidad
+
+### Pipeline
+- **Paralelización**: el pipeline puede dividirse por año o borough usando `concurrent.futures` para procesar lotes en paralelo.
+- **Incremental**: los datos nuevos se agregan por fecha sin reprocesar el histórico completo (carga upsert).
+
+### Base de datos (Supabase/PostgreSQL)
+- **Índices**: crear índices en `(year, borough)` para acelerar consultas del frontend.
+- **Particionamiento**: la tabla `london_crime_aggregated` puede particionarse por año.
+- **Connection pooling**: Supabase usa PgBouncer para manejar cientos de conexiones concurrentes.
+
+### Frontend
+- **Caché**: implementar React Query o SWR para cachear respuestas de Supabase y evitar llamadas repetidas.
+- **Paginación**: en lugar de `LIMIT 200`, usar paginación server-side con `range()` de Supabase.
+- **CDN**: el build estático de Nginx puede servirse desde Cloudflare o cualquier CDN.
+
+### Infraestructura
+- **Réplicas**: Docker Compose soporta `deploy.replicas` para escalar horizontalmente el backend.
+- **Orquestación**: para producción, migrar a Kubernetes (GKE) con auto-escalado vertical y horizontal.
+- **Health checks**: agregar endpoint `/health` en el backend para que el orquestador monitoree disponibilidad.
+
+### Manejo de anomalías
+- **Reintentos**: el pipeline reintenta conexiones fallidas a Supabase/BigQuery con backoff exponencial.
+- **Validación**: los outliers se detectan pero no se eliminan automáticamente — se reportan para decisión del analista.
+- **Logs**: todos los errores se registran con timestamp y contexto para diagnóstico rápido.
+- **Alertas**: integrar con Slack o email cuando el pipeline falle o los KPIs estén fuera de rango esperado.
 
 ---
 
