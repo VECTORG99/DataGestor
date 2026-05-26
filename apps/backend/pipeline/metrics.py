@@ -52,22 +52,22 @@ class PipelineMetrics:
     def summary(self) -> str:
         lines = [
             "=" * 70,
-            "RESUMEN DE KPIs — PIPELINE DATAOPS",
+            "RESUMEN DE KPIs - PIPELINE DATAOPS",
             "=" * 70,
-            f"  Ejecución:       {self.timestamp}",
-            f"  Modo:            {'Demo' if self.demo_mode else 'Producción'}",
-            f"  Duración total:  {self.total_duration_seconds:.2f} seg",
+            f"  Ejecucion:       {self.timestamp}",
+            f"  Modo:            {'Demo' if self.demo_mode else 'Produccion'}",
+            f"  Duracion total:  {self.total_duration_seconds:.2f} seg",
         ]
         for s in self.stages:
             dur = f"{s.duration_seconds:.2f}s"
             rec = ""
             if s.records_in is not None and s.records_out is not None:
-                rec = f"  [{s.records_in} → {s.records_out}]"
-            lines.append(f"    ├─ {s.stage}: {dur}{rec}")
+                rec = f"  [{s.records_in} > {s.records_out}]"
+            lines.append(f"    - {s.stage}: {dur}{rec}")
         lines.extend(
             [
-                f"  Registros:        {self.records_initial} → {self.records_final}"
-                f" ({self.reduction_pct:.1f}% reducción)",
+                f"  Registros:        {self.records_initial} > {self.records_final}"
+                f" ({self.reduction_pct:.1f}% reduccion)",
                 f"  Completitud:      {self.completeness_pct}%",
                 f"  Outliers:         {self.outliers_detected}",
                 f"  Advertencias:     {self.warnings_count}",

@@ -16,6 +16,7 @@ from apps.backend.pipeline.cleaning import (  # noqa: E402
     validate_data_quality,
 )
 from apps.backend.pipeline.loading import load_to_supabase, save_clean_data  # noqa: E402
+from apps.backend.pipeline.data_stage_manager import DataStageManager  # noqa: E402
 from apps.backend.pipeline.metrics import MetricsCollector  # noqa: E402
 
 # Configurar logs para guardar evidencia
@@ -58,6 +59,9 @@ def main():
     metrics.set_demo_mode(args.demo)
 
     try:
+        # Inicializar gestor de etapas del pipeline
+        stage_manager = DataStageManager(data_root=ROOT_DIR / "data")
+
         # 1. INGESTA
         metrics.start_stage("ingesta")
         if args.demo:
@@ -71,12 +75,15 @@ def main():
 
         initial_count = len(df)
 
-        # 2. LIMPIEZA Y TRANSFORMACIÓN
+        # 2. GUARDAR DATOS RAW (datos originales sin modificar)
+        stage_manager.save_raw_data(df, filename="london_crime_raw")
+
+        # 3. LIMPIEZA Y TRANSFORMACIÓN
         metrics.start_stage("limpieza", records_in=initial_count)
         df_agrupado = clean_and_transform_data(df)
         metrics.end_stage(records_out=len(df_agrupado))
 
-        # 3. VALIDACIÓN
+        # 4. VALIDACIÓN
         metrics.start_stage("validacion")
         validate_data_quality(df_agrupado)
         metrics.end_stage()
@@ -89,14 +96,28 @@ def main():
         )
         metrics.set_completeness(completeness)
 
-        # 4. GUARDADO LOCAL
+        # 5. GUARDAR DATOS VALIDATED (después de validación, antes de limpieza)
+        stage_manager.validate_and_save_validated(
+            df_agrupado, 
+            filename="london_crime_validated",
+            validation_report_filename="validation_report"
+        )
+
+        # 6. GUARDADO LOCAL DE DATOS PROCESADOS
         metrics.start_stage("guardado")
         output_dir = ROOT_DIR / "data" / "processed"
         rutas = save_clean_data(df_agrupado, output_dir)
         metrics.end_stage()
         logging.info(f"Archivos guardados: {rutas}")
 
-        # 5. CARGA A SUPABASE (opcional - si SUPABASE_DB_URL está configurado)
+        # 7. GUARDAR DATOS PROCESSED (referencia de datos finales)
+        stage_manager.save_processed_data(
+            df_agrupado, 
+            filename="london_crime_processed",
+            formats=["parquet", "csv"]
+        )
+
+        # 8. CARGA A SUPABASE (opcional - si SUPABASE_DB_URL está configurado)
         metrics.start_stage("carga_supabase")
         try:
             load_to_supabase(df_agrupado)
@@ -117,7 +138,7 @@ def main():
         for line in kpi_summary.split("\n"):
             logging.info(line)
 
-        logging.info("--- PIPELINE DATAOPS FINALIZADO CON ÉXITO ---")
+        logging.info("--- PIPELINE DATAOPS FINALIZADO CON EXITO ---")
 
     except Exception as e:
         logging.error(f"Pipeline falló: {e}")
