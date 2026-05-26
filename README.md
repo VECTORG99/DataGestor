@@ -76,7 +76,7 @@ DataOps aporta agilidad y automatización al ciclo de datos; PMBOK entrega la es
   - SPA creada con Vite y Material UI.
   - Consulta Supabase con `@supabase/supabase-js` y muestra tabla dinámica.
   - Opción para agregar más features (filtros, paginación, charts).
-- Docker Compose: Orquestación automática de frontend + backend (pipeline) + db.
+- Docker Compose: Orquestación automática de frontend + backend (pipeline).
 - Deploy:
   - Local: Nginx sirve la build de React.
   - Producción: Solo se necesita la URL y ANON_KEY de Supabase en el frontend (sin backend ni DB local).
@@ -106,10 +106,8 @@ Visualización Profesional
 ## 1. Descripción del Proyecto
 Este repositorio contiene el diseño de arquitectura y la planificación para un sistema de gestión de datos basado en el dataset público `london_crime` de Google BigQuery. El objetivo es proporcionar una plataforma escalable para identificar focos de alta incidencia delictiva y analizar tendencias históricas en la ciudad de Londres desde el año 2008.
 
-## 2. Arquitectura Seleccionada 
-Se ha implementado una arquitectura **Lakehouse** sobre la plataforma Google Cloud (GCP).
-*   **Justificación:** Combina la flexibilidad de un Data Lake (Cloud Storage) con el rendimiento analítico de un Data Warehouse (BigQuery). Ideal para integrar visualización (Looker) y analítica avanzada (IA/ML) sin redundancia.
-*   **Capas de Datos:** Siguiendo el patrón Medallion (Bronce, Plata, Oro).
+## 2. Arquitectura
+Los datos se extraen desde **BigQuery** (Google Cloud), se procesan con el pipeline Python, se almacenan en **Supabase** (PostgreSQL) y se visualizan en un **frontend React**. No se implementa Lakehouse ni Medallion; el stack prioriza simplicidad y reproducibilidad con Docker Compose.
 
 ## 3. Instrucciones rápidas de Instalación y Uso
 
@@ -145,7 +143,7 @@ DataGestor/
 │   │   └── tests/          #   test_pipeline_dataops.py
 │   └── frontend/           # React SPA (Vite + Material UI)
 │       ├── src/            #   App.jsx, main.jsx
-│       ├── public/         #   favicon, icons
+│       ├── public/         #   Archivos estáticos
 │       ├── .env.local      #   Credenciales Supabase (no subir)
 │       └── package.json
 ├── config/                 # Configuración sensible (no subir a git)
@@ -263,41 +261,6 @@ docker exec london_crime_app python apps/backend/cli/pipeline_dataops.py --demo
 - **Python 3.9+** (solo para desarrollo del backend fuera de Docker)
 - **Cuenta de Supabase** con tabla `london_crime_aggregated`
 - **(Opcional) Cuenta de GCP** con acceso a BigQuery
-
-## 5. Casos de Análisis SQL
-
-Ejemplos de consultas sobre el dataset `london_crime` en BigQuery:
-
-### A. Rango de Fechas
-```sql
-SELECT 
-    MIN(year) as primer_año, 
-    MAX(year) as ultimo_año 
-FROM `bigquery-public-data.london_crime.crime_by_lsoa`;
-```
-
-### B. Crímenes por Año y Categoría
-```sql
-SELECT
-year,
-COUNT(CASE WHEN major_category = 'Violence Against the Person' THEN 1 END) AS Crimenes_Violentos,
-COUNT(CASE WHEN major_category = 'Theft and Handling' THEN 1 END) AS Robos_Hurtos,
-SUM(value) as total_incidentes
-FROM `bigquery-public-data.london_crime.crime_by_lsoa`
-GROUP BY year
-ORDER BY year DESC;
-```
-
-### C. Top 10 Municipios con Más Crímenes
-```sql
-SELECT 
-    borough, 
-    SUM(value) as total_crimenes
-FROM `bigquery-public-data.london_crime.crime_by_lsoa`
-GROUP BY borough
-ORDER BY total_crimenes DESC
-LIMIT 10;
-```
 
 ---
 

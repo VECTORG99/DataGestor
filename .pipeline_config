@@ -10,16 +10,16 @@ FASES DEL PIPELINE:
    └─ Retorna: 100,000 registros sin procesar
 
 2. LIMPIEZA Y TRANSFORMACIÓN (cleaning.py)
-   ├─ Paso 1: Estandarizar nombres de columnas
-   ├─ Paso 2: Manejar valores nulos
-   ├─ Paso 3: Validar y convertir tipos de datos
-   ├─ Paso 4: Validar rangos de valores
-   ├─ Paso 5: Normalizar campos de texto
-   ├─ Paso 5a: Eliminar duplicados completamente idénticos
-   ├─ Paso 5b: AGREGAR crímenes por (borough, major_category, minor_category, year, month)
+   ├─ Estandarizar nombres de columnas (sin número de paso)
+   ├─ Paso 1: Manejar valores nulos
+   ├─ Paso 2: Validar y convertir tipos de datos
+   ├─ Paso 3: Validar rangos de valores
+   ├─ Paso 4: Normalizar campos de texto
+   ├─ Paso 5: Eliminar duplicados completamente idénticos
+   ├─ Paso 6: AGREGAR crímenes por (borough, major_category, minor_category, year, month)
    │         └─ Suma los valores de incidentes
    │         └─ Resultado: 16,609 registros únicos agregados
-   ├─ Paso 6: Crear columna de fecha
+   ├─ Paso 7: Crear columna de fecha
    ├─ Paso 8: Detectar outliers (solo reporta, no elimina)
    └─ Paso 9: Eliminar columnas innecesarias
 

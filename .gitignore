@@ -19,12 +19,6 @@ docker-compose.override.yml
 
 # Data outputs
 data/
-data/logs/
-data/outputs/
-data/processed/
-
-# Bases de Datos (Volúmenes)
-pgdata/
 
 # IDE e Interfaz
 .vscode/

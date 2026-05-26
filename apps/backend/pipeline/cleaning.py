@@ -250,7 +250,7 @@ def aggregate_crime_data(df: pd.DataFrame) -> pd.DataFrame:
     Returns:
         pd.DataFrame: DataFrame con crímenes agregados y columna total_crimes
     """
-    logging.info("Paso 5b: Agregando crímenes por ubicación, tipo y período...")
+    logging.info("Paso 6: Agregando crímenes por ubicación, tipo y período...")
     initial_rows = len(df)
 
     # Agrupar por ubicación, tipo de crimen y período, sumando los valores
@@ -287,7 +287,7 @@ def create_date_column(df: pd.DataFrame) -> pd.DataFrame:
     Returns:
         pd.DataFrame: DataFrame con columna de fecha adicional
     """
-    logging.info("Paso 6: Creando columna de fecha unificada...")
+    logging.info("Paso 7: Creando columna de fecha unificada...")
 
     if "year" in df.columns and "month" in df.columns:
         try:
