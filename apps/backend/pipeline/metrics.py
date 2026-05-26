@@ -1,0 +1,132 @@
+import json
+import time
+from dataclasses import dataclass, field
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Optional
+
+
+@dataclass
+class StageMetric:
+    stage: str
+    duration_seconds: float
+    records_in: Optional[int] = None
+    records_out: Optional[int] = None
+
+
+@dataclass
+class PipelineMetrics:
+    timestamp: str = ""
+    demo_mode: bool = False
+    total_duration_seconds: float = 0.0
+    stages: list = field(default_factory=list)
+    records_initial: int = 0
+    records_final: int = 0
+    reduction_pct: float = 0.0
+    completeness_pct: float = 100.0
+    outliers_detected: int = 0
+    warnings_count: int = 0
+
+    def to_dict(self):
+        return {
+            "timestamp": self.timestamp,
+            "demo_mode": self.demo_mode,
+            "total_duration_seconds": round(self.total_duration_seconds, 2),
+            "stages": [
+                {
+                    "stage": s.stage,
+                    "duration_seconds": round(s.duration_seconds, 2),
+                    "records_in": s.records_in,
+                    "records_out": s.records_out,
+                }
+                for s in self.stages
+            ],
+            "records_initial": self.records_initial,
+            "records_final": self.records_final,
+            "reduction_pct": round(self.reduction_pct, 1),
+            "completeness_pct": round(self.completeness_pct, 1),
+            "outliers_detected": self.outliers_detected,
+            "warnings_count": self.warnings_count,
+        }
+
+    def summary(self) -> str:
+        lines = [
+            "=" * 70,
+            "RESUMEN DE KPIs — PIPELINE DATAOPS",
+            "=" * 70,
+            f"  Ejecución:       {self.timestamp}",
+            f"  Modo:            {'Demo' if self.demo_mode else 'Producción'}",
+            f"  Duración total:  {self.total_duration_seconds:.2f} seg",
+        ]
+        for s in self.stages:
+            dur = f"{s.duration_seconds:.2f}s"
+            rec = ""
+            if s.records_in is not None and s.records_out is not None:
+                rec = f"  [{s.records_in} → {s.records_out}]"
+            lines.append(f"    ├─ {s.stage}: {dur}{rec}")
+        lines.extend(
+            [
+                f"  Registros:        {self.records_initial} → {self.records_final}"
+                f" ({self.reduction_pct:.1f}% reducción)",
+                f"  Completitud:      {self.completeness_pct}%",
+                f"  Outliers:         {self.outliers_detected}",
+                f"  Advertencias:     {self.warnings_count}",
+                "=" * 70,
+            ]
+        )
+        return "\n".join(lines)
+
+
+class MetricsCollector:
+    def __init__(self):
+        self.metrics = PipelineMetrics(timestamp=datetime.now(timezone.utc).isoformat())
+        self._start_time = time.time()
+        self._stage_start = None
+        self._current_stage = None
+        self._warnings_before = 0
+
+    def set_demo_mode(self, enabled: bool):
+        self.metrics.demo_mode = enabled
+
+    def start_stage(self, name: str, records_in: int = None):
+        self._current_stage = StageMetric(
+            stage=name,
+            duration_seconds=0.0,
+            records_in=records_in,
+        )
+        self._stage_start = time.time()
+
+    def end_stage(self, records_out: int = None):
+        if self._current_stage and self._stage_start:
+            self._current_stage.duration_seconds = time.time() - self._stage_start
+            if records_out is not None:
+                self._current_stage.records_out = records_out
+            self.metrics.stages.append(self._current_stage)
+        self._current_stage = None
+        self._stage_start = None
+
+    def set_records(self, initial: int, final: int):
+        self.metrics.records_initial = initial
+        self.metrics.records_final = final
+        if initial > 0:
+            self.metrics.reduction_pct = (1 - final / initial) * 100
+
+    def set_completeness(self, pct: float):
+        self.metrics.completeness_pct = pct
+
+    def set_outliers(self, count: int):
+        self.metrics.outliers_detected = count
+
+    def set_warnings(self, count: int):
+        self.metrics.warnings_count = count
+
+    def finalize(self):
+        self.metrics.total_duration_seconds = time.time() - self._start_time
+        return self.metrics
+
+    def save(self, metrics_dir: Path):
+        metrics_dir.mkdir(parents=True, exist_ok=True)
+        path = metrics_dir / "pipeline_metrics.jsonl"
+        with open(path, "a") as f:
+            f.write(json.dumps(self.metrics.to_dict()) + "\n")
+        return path

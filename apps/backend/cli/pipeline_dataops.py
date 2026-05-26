@@ -16,6 +16,7 @@ from apps.backend.pipeline.cleaning import (  # noqa: E402
     validate_data_quality,
 )
 from apps.backend.pipeline.loading import load_to_supabase, save_clean_data  # noqa: E402
+from apps.backend.pipeline.metrics import MetricsCollector  # noqa: E402
 
 # Configurar logs para guardar evidencia
 log_dir = ROOT_DIR / "data" / "logs"
@@ -42,6 +43,8 @@ def main():
     logging.info("--- INICIANDO PIPELINE DATAOPS ---")
     load_dotenv(dotenv_path=ROOT_DIR / ".env")
 
+    metrics = MetricsCollector()
+
     # Autenticar GCP (solo si no es modo demo)
     if not args.demo:
         credentials_path = ROOT_DIR / "config" / "credentials.json"
@@ -52,8 +55,11 @@ def main():
             logging.warning("credentials.json no encontrado. Se usará modo demo automáticamente.")
             args.demo = True
 
+    metrics.set_demo_mode(args.demo)
+
     try:
         # 1. INGESTA
+        metrics.start_stage("ingesta")
         if args.demo:
             logging.info("=" * 70)
             logging.info("FASE 1: INGESTA — MODO DEMO (datos sintéticos)")
@@ -61,24 +67,55 @@ def main():
             df = get_sample_data(n_rows=150)
         else:
             df = ingest_data_from_bigquery()
+        metrics.end_stage(records_out=len(df))
+
+        initial_count = len(df)
 
         # 2. LIMPIEZA Y TRANSFORMACIÓN
+        metrics.start_stage("limpieza", records_in=initial_count)
         df_agrupado = clean_and_transform_data(df)
+        metrics.end_stage(records_out=len(df_agrupado))
 
         # 3. VALIDACIÓN
+        metrics.start_stage("validacion")
         validate_data_quality(df_agrupado)
+        metrics.end_stage()
+
+        # Calcular completitud
+        null_count = df_agrupado[["borough", "year", "month", "total_crimes"]].isnull().sum().sum()
+        total_cells = len(df_agrupado) * 4
+        completeness = (
+            ((total_cells - null_count) / total_cells) * 100 if total_cells > 0 else 100.0
+        )
+        metrics.set_completeness(completeness)
 
         # 4. GUARDADO LOCAL
+        metrics.start_stage("guardado")
         output_dir = ROOT_DIR / "data" / "processed"
         rutas = save_clean_data(df_agrupado, output_dir)
+        metrics.end_stage()
         logging.info(f"Archivos guardados: {rutas}")
 
         # 5. CARGA A SUPABASE (opcional - si SUPABASE_DB_URL está configurado)
+        metrics.start_stage("carga_supabase")
         try:
             load_to_supabase(df_agrupado)
         except Exception as e:
             logging.warning(f"No se pudo cargar a Supabase: {e}")
             logging.warning("El pipeline continúa. Verifica la configuración en .env")
+        metrics.end_stage()
+
+        # Finalizar y guardar KPIs
+        metrics.set_records(initial_count, len(df_agrupado))
+        final_metrics = metrics.finalize()
+
+        metrics_dir = ROOT_DIR / "data" / "metrics"
+        metrics_path = metrics.save(metrics_dir)
+        logging.info(f"KPIs guardados en: {metrics_path}")
+
+        kpi_summary = final_metrics.summary()
+        for line in kpi_summary.split("\n"):
+            logging.info(line)
 
         logging.info("--- PIPELINE DATAOPS FINALIZADO CON ÉXITO ---")
 

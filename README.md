@@ -121,7 +121,7 @@ docker exec -it london_crime_app python apps/backend/cli/pipeline_dataops.py
 DataGestor/
 ├── apps/                   # Aplicaciones
 │   ├── backend/            # Código Python (pipeline ETL)
-│   │   ├── pipeline/       #   ingestion, cleaning, loading
+│   │   ├── pipeline/       #   ingestion, cleaning, loading, metrics
 │   │   ├── cli/            #   pipeline_dataops.py (entrypoint)
 │   │   └── tests/          #   test_pipeline_dataops.py
 │   └── frontend/           # React SPA (Vite + Material UI)
@@ -134,7 +134,7 @@ DataGestor/
 │   └── credentials.json    # Credenciales GCP
 ├── data/                   # Datos locales (no subir a git)
 │   ├── logs/               # Logs del pipeline
-│   ├── outputs/            # Outputs generados
+│   ├── metrics/            # KPIs del pipeline (JSONL)
 │   └── processed/          # Datos limpios (CSV + Parquet) generados por el pipeline
 ├── infra/                  # Infraestructura (Docker)
 │   ├── backend.Dockerfile
@@ -180,6 +180,30 @@ docker exec london_crime_app python -m pytest apps/backend/tests/ -v
 
 # Opción 3: Instalar pytest y ejecutar
 pip install pytest && python -m pytest apps/backend/tests/ -v
+```
+
+---
+
+## Monitoreo y KPIs
+
+El pipeline registra automáticamente métricas de cada ejecución:
+
+| KPI | Descripción | Ejemplo |
+|-----|-------------|---------|
+| Latencia | Duración por etapa (ingesta, limpieza, validación, guardado, carga) | `limpieza: 0.02s` |
+| Volumen | Registros iniciales → finales con % de reducción | `150 → 146 (2.7%)` |
+| Completitud | % de datos no nulos en columnas críticas | `100.0%` |
+| Outliers | Valores atípicos detectados (IQR) | `7` |
+
+Los KPIs se muestran al final del pipeline y se persisten en `data/metrics/pipeline_metrics.jsonl` (una línea por ejecución).
+
+```bash
+docker exec london_crime_app python apps/backend/cli/pipeline_dataops.py --demo
+# Al final muestra:
+# RESUMEN DE KPIs — PIPELINE DATAOPS
+#   Duración total:  7.27 seg
+#   Registros:        150 → 146 (2.7% reducción)
+#   Completitud:      100.0%
 ```
 
 ---
