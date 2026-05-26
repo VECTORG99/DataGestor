@@ -43,9 +43,7 @@ class DataStageManager:
             directory.mkdir(parents=True, exist_ok=True)
             logging.info(f"Directorio asegurado: {directory}")
 
-    def save_raw_data(
-        self, df: pd.DataFrame, filename: str = "london_crime_raw"
-    ) -> Dict[str, str]:
+    def save_raw_data(self, df: pd.DataFrame, filename: str = "london_crime_raw") -> Dict[str, str]:
         """
         Guarda los datos originales (RAW) sin modificaciones en Parquet.
 
@@ -71,7 +69,9 @@ class DataStageManager:
             # Registrar información del dataset
             logging.info(f"Filas: {len(df)}")
             logging.info(f"Columnas: {list(df.columns)}")
-            logging.info(f"Tamaño aproximado: {df.memory_usage(deep=True).sum() / 1024 / 1024:.2f} MB")
+            logging.info(
+                f"Tamaño aproximado: {df.memory_usage(deep=True).sum() / 1024 / 1024:.2f} MB"
+            )
 
             # Guardar en Parquet
             df.to_parquet(parquet_path, index=False, compression="snappy")
@@ -222,7 +222,9 @@ class DataStageManager:
 
             logging.info(f"Filas procesadas: {len(df)}")
             logging.info(f"Columnas: {list(df.columns)}")
-            logging.info(f"Tamaño aproximado: {df.memory_usage(deep=True).sum() / 1024 / 1024:.2f} MB")
+            logging.info(
+                f"Tamaño aproximado: {df.memory_usage(deep=True).sum() / 1024 / 1024:.2f} MB"
+            )
 
             # Guardar en Parquet si se solicita
             if "parquet" in formats:
@@ -270,7 +272,9 @@ class DataStageManager:
                 if is_valid:
                     logging.info(f"  [OK] {col}: {actual_type}")
                 else:
-                    logging.warning(f"  [WARN] {col}: tipo {actual_type}, esperado {expected_types}")
+                    logging.warning(
+                        f"  [WARN] {col}: tipo {actual_type}, esperado {expected_types}"
+                    )
                     results["data_types_valid"] = False
 
         return results

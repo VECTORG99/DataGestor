@@ -1,15 +1,15 @@
-# Plan de Seguridad — DataGestor
+# Plan de Seguridad - DataGestor
 
 ## 1. Marco Legal Aplicable
 
-### 1.1 Reglamento General de Protección de Datos (GDPR) — UE
+### 1.1 Reglamento General de Protección de Datos (GDPR) - UE
 - **Aplica porque**: Los datos procesados incluyen información de crímenes en Londres (Reino Unido).
 - **Cumplimiento**:
   - Minimización de datos: solo se almacenan campos necesarios para el análisis (borough, categorías, fechas, valores agregados).
   - Limitación de finalidad: los datos se usan exclusivamente para análisis estadístico de seguridad pública.
   - Transparencia: el pipeline documenta cada transformación aplicada.
 
-### 1.2 Ley 19.628 sobre Protección de la Vida Privada — Chile
+### 1.2 Ley 19.628 sobre Protección de la Vida Privada - Chile
 - **Aplica porque**: El proyecto es desarrollado y presentado en Chile (Duoc UC).
 - **Cumplimiento**:
   - Los datos son anónimos y agregados (no incluyen información personal identificable).
@@ -21,17 +21,17 @@
 ### 2.1 Cifrado en Tránsito (TLS)
 | Capa | Método | Estado |
 |------|--------|--------|
-| Frontend → Supabase | TLS 1.3 | ✅ Supabase fuerza HTTPS por defecto |
-| Pipeline → Supabase | TLS 1.3 | ✅ SQLAlchemy + `psycopg2-binary` usan TLS |
-| Pipeline → BigQuery | TLS 1.3 | ✅ Cliente de Google Cloud usa HTTPS |
-| Navegador → Frontend | HTTP (puerto 5173) | ⚠️ Producción requiere TLS (ver sección 2.3) |
+| Frontend -> Supabase | TLS 1.3 | [OK] Supabase fuerza HTTPS por defecto |
+| Pipeline -> Supabase | TLS 1.3 | [OK] SQLAlchemy + `psycopg2-binary` usan TLS |
+| Pipeline -> BigQuery | TLS 1.3 | [OK] Cliente de Google Cloud usa HTTPS |
+| Navegador -> Frontend | HTTP (puerto 5173) | [!] Produccion requiere TLS (ver seccion 2.3) |
 
 ### 2.2 Cifrado en Reposo
 | Componente | Método | Estado |
 |------------|--------|--------|
-| Supabase (PostgreSQL) | Cifrado AES-256 | ✅ Activado por defecto |
-| BigQuery | Cifrado AES-256 | ✅ Activado por defecto |
-| Archivos CSV/Parquet locales | Sin cifrar | ⚠️ Almacenamiento local temporal |
+| Supabase (PostgreSQL) | Cifrado AES-256 | [OK] Activado por defecto |
+| BigQuery | Cifrado AES-256 | [OK] Activado por defecto |
+| Archivos CSV/Parquet locales | Sin cifrar | [!] Almacenamiento local temporal |
 
 ### 2.3 Configuración de TLS en Producción
 Para entornos productivos, agregar un proxy reverso con certificado TLS:
@@ -92,14 +92,14 @@ WITH CHECK (true);
 ## 4. Prácticas DataOps Seguras
 
 ### 4.1 Gestión de Secretos
-- `.env` y `*.local` están en `.gitignore` — nunca se suben al repositorio.
+- `.env` y `*.local` están en `.gitignore` - nunca se suben al repositorio.
 - `config/credentials.json` está en `.gitignore`.
 - Variables de entorno inyectadas vía Docker Compose o archivo `.env`.
 - En CI/CD, las credenciales se pasan como variables de entorno (`secrets`).
 
 ### 4.2 Aislamiento de Contenedores
 - Cada servicio corre en su propio contenedor Docker.
-- El frontend (Nginx) solo sirve archivos estáticos — no ejecuta lógica sensible.
+- El frontend (Nginx) solo sirve archivos estáticos - no ejecuta lógica sensible.
 - El backend (Python) tiene acceso solo a los volúmenes necesarios.
 
 ### 4.3 Logging Seguro
