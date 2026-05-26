@@ -10,6 +10,17 @@
 - Repositorio: https://github.com/VECTORG99/DataGestor
 ---
 
+## Seguridad
+
+Ver [`SECURITY.md`](SECURITY.md) para el plan completo.
+
+**Resumen:**
+- **Leyes**: GDPR (UE) y Ley 19.628 (Chile) aplicadas al tratamiento de datos.
+- **Cifrado en tránsito**: TLS 1.3 en todas las conexiones externas (Supabase, BigQuery).
+- **Cifrado en reposo**: AES-256 en Supabase y BigQuery por defecto.
+- **Control de acceso**: Row-Level Security (RLS) en Supabase — `anon_key` solo lectura, `service_role` escritura.
+- **Secretos**: `.env`, `credentials.json` y `*.local` en `.gitignore`.
+
 ## Etapas del Pipeline
 
 ### 1. Ingesta y Limpieza de Datos
