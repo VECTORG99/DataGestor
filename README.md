@@ -73,9 +73,16 @@ DataOps aporta agilidad y automatización al ciclo de datos; PMBOK entrega la es
 - Seguridad: Uso exclusivo de `anon_key` (solo lectura en frontend).
 
 ### 4. Visualización & Consumo Frontend
-- Dashboard React profesional:
-  - SPA creada con Vite, Material UI y Chart.js.
-  - Consulta Supabase con `@supabase/supabase-js`.
+
+**Tecnologías:**
+- **React 19** — UI components y estado
+- **Vite 8** (Rolldown) — bundler y dev server
+- **Material UI 9** — diseño de componentes (Cards, Grid, Tablas, Selectores)
+- **Chart.js 4** + **react-chartjs-2 5** — gráficos (barras, donut, línea)
+- **Supabase JS SDK 2** — consultas a la base de datos PostgreSQL
+- **Nginx** — servidor de producción del build estático
+
+**Dashboard:**
   - KPIs: total crímenes, distrito líder, categoría principal, registros filtrados.
   - Gráficos: barras por distrito, donut por categoría, línea de tendencia temporal, top 10 subcategorías.
   - Filtros interactivos: distrito, categoría, año (actualizan todos los charts y tablas).
