@@ -12,12 +12,19 @@ RUN apt-get update && apt-get install -y \
     git \
     && rm -rf /var/lib/apt/lists/*
 
-# Establecer el directorio de trabajo en el contenedor
+# Crear usuario con UID 1000 (coincide con el usuario del host)
+RUN groupadd -g 1000 appuser && useradd -m -u 1000 -g appuser appuser
+
+# Establecer el directorio de trabajo y permisos
 WORKDIR /app
+RUN chown -R appuser:appuser /app
 
 # Copiar el archivo de requerimientos e instalar dependencias de Python
 COPY requirements.txt /app/
 RUN pip install --no-cache-dir -r requirements.txt
+
+# Cambiar al usuario no-root
+USER appuser
 
 # El comando por defecto será una shell interactiva
 CMD ["/bin/bash"]
