@@ -3,16 +3,18 @@
 version: '3.8'
 
 services:
-  # Servicio de Aplicación (Python + GCloud SDK)
   app:
     build:
       context: ..
       dockerfile: infra/backend.Dockerfile
-    container_name: london_crime_app
+      args:
+        PYTHON_IMAGE: ${PYTHON_IMAGE:-python:3.9-slim}
+        APP_UID: ${APP_UID:-1000}
+        APP_GID: ${APP_GID:-1000}
+    container_name: ${BACKEND_CONTAINER_NAME:-london_crime_app}
     volumes:
       - ..:/app
-      # Montaje opcional para credenciales locales de GCP si se desea
-      - ~/.config/gcloud:/root/.config/gcloud 
+      - ~/.config/gcloud:/root/.config/gcloud
     environment:
       - PYTHONUNBUFFERED=1
     tty: true
@@ -22,9 +24,13 @@ services:
     build:
       context: ..
       dockerfile: infra/frontend.Dockerfile
-    container_name: datagestor-frontend
+      args:
+        NODE_IMAGE: ${NODE_IMAGE:-node:20-alpine}
+        NGINX_IMAGE: ${NGINX_IMAGE:-nginx:alpine}
+        NGINX_PORT: ${NGINX_PORT:-80}
+    container_name: ${FRONTEND_CONTAINER_NAME:-datagestor-frontend}
     ports:
-      - "5173:80"
+      - "${FRONTEND_PORT:-5173}:${NGINX_PORT:-80}"
     env_file:
       - ../apps/frontend/.env.local
     restart: unless-stopped

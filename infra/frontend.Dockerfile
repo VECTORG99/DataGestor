@@ -1,5 +1,8 @@
 # Dockerfile para React frontend
-FROM node:20-alpine AS build
+
+ARG NODE_IMAGE=node:20-alpine
+FROM $NODE_IMAGE AS build
+
 WORKDIR /app
 COPY apps/frontend/package*.json ./
 COPY apps/frontend/.env.local ./
@@ -7,8 +10,12 @@ RUN npm install
 COPY apps/frontend/ .
 RUN npm run build
 
-FROM nginx:alpine
+ARG NGINX_IMAGE=nginx:alpine
+FROM $NGINX_IMAGE
 COPY --from=build /app/dist /usr/share/nginx/html
 COPY infra/nginx.conf /etc/nginx/conf.d/default.conf
-EXPOSE 80
+
+ARG NGINX_PORT=80
+EXPOSE $NGINX_PORT
+
 CMD ["nginx", "-g", "daemon off;"]
