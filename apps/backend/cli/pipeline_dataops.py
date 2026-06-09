@@ -2,11 +2,13 @@ import os
 import sys
 import argparse
 import logging
+from pathlib import Path
 
 from dotenv import load_dotenv
 
-if str(settings.PROJECT_ROOT) not in sys.path:
-    sys.path.insert(0, str(settings.PROJECT_ROOT))
+PROJECT_ROOT = Path(__file__).resolve().parents[3]
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
 
 from config import settings
 from apps.backend.pipeline.ingestion import ingest_data_from_bigquery, get_sample_data
