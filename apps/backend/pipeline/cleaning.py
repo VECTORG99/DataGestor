@@ -5,6 +5,8 @@ from datetime import datetime
 
 from config import settings
 
+_SEP = "=" * settings.SEPARATOR_LENGTH
+
 
 def standardize_column_names(df: pd.DataFrame) -> pd.DataFrame:
     df.columns = df.columns.str.lower().str.replace(" ", "_").str.replace("-", "_")
@@ -139,7 +141,7 @@ def aggregate_crime_data(df: pd.DataFrame) -> pd.DataFrame:
 
     if all(col in df.columns for col in settings.GROUPBY_COLS):
         df_aggregated = df.groupby(settings.GROUPBY_COLS, as_index=False).agg({"value": "sum"})
-        df_aggregated = df_aggregated.rename(columns={"value": "total_crimes"})
+        df_aggregated = df_aggregated.rename(columns=settings.COLUMN_RENAME_MAP)
 
         rows_aggregated = initial_rows - len(df_aggregated)
         if rows_aggregated > 0:
@@ -161,7 +163,9 @@ def create_date_column(df: pd.DataFrame) -> pd.DataFrame:
 
     if "year" in df.columns and "month" in df.columns:
         try:
-            df["date"] = pd.to_datetime(df[["year", "month"]].assign(day=1), errors="coerce")
+            df["date"] = pd.to_datetime(
+                df[["year", "month"]].assign(day=settings.DATE_DAY_DEFAULT), errors="coerce"
+            )
             logging.info("  Columna 'date' creada en formato datetime")
         except Exception as e:
             logging.error(f"Error al crear columna de fecha: {e}")
@@ -169,7 +173,9 @@ def create_date_column(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
-def detect_outliers(df: pd.DataFrame, method: str = "iqr") -> dict:
+def detect_outliers(df: pd.DataFrame, method: str = None) -> dict:
+    if method is None:
+        method = settings.OUTLIER_DEFAULT_METHOD
     logging.info("Paso 8: Detectando valores atípicos (outliers)...")
 
     outliers_info = {
@@ -184,8 +190,8 @@ def detect_outliers(df: pd.DataFrame, method: str = "iqr") -> dict:
         return outliers_info
 
     if method == "iqr":
-        Q1 = df["total_crimes"].quantile(0.25)
-        Q3 = df["total_crimes"].quantile(0.75)
+        Q1 = df["total_crimes"].quantile(settings.VALIDATION_IQR_Q1)
+        Q3 = df["total_crimes"].quantile(settings.VALIDATION_IQR_Q3)
         IQR = Q3 - Q1
         lower_bound = Q1 - settings.VALIDATION_IQR_MULTIPLIER * IQR
         upper_bound = Q3 + settings.VALIDATION_IQR_MULTIPLIER * IQR
@@ -211,8 +217,8 @@ def detect_outliers(df: pd.DataFrame, method: str = "iqr") -> dict:
 
     if len(outlier_indices) > 0:
         logging.info(f"  {len(outlier_indices)} valores atípicos detectados (método: {method})")
-        q05 = df["total_crimes"].quantile(0.05)
-        q95 = df["total_crimes"].quantile(0.95)
+        q05 = df["total_crimes"].quantile(settings.VALIDATION_REPORT_Q05)
+        q95 = df["total_crimes"].quantile(settings.VALIDATION_REPORT_Q95)
         logging.info(f"  Rango típico: {q05:.0f} - {q95:.0f}")
         logging.info(
             f"  Valores atípicos: min={min(outlier_values):.0f}, max={max(outlier_values):.0f}"
@@ -239,9 +245,9 @@ def remove_unnecessary_columns(df: pd.DataFrame, keep_columns: list = None) -> p
 
 
 def clean_and_transform_data(df: pd.DataFrame) -> pd.DataFrame:
-    logging.info("=" * 70)
+    logging.info(_SEP)
     logging.info("FASE 2: LIMPIEZA Y TRANSFORMACIÓN DE DATOS")
-    logging.info("=" * 70)
+    logging.info(_SEP)
     logging.info(f"Registros iniciales: {len(df)}")
 
     try:
@@ -256,10 +262,10 @@ def clean_and_transform_data(df: pd.DataFrame) -> pd.DataFrame:
         detect_outliers(df, method="iqr")
         df = remove_unnecessary_columns(df)
 
-        logging.info("=" * 70)
+        logging.info(_SEP)
         logging.info(f"Registros finales: {len(df)}")
         logging.info("Transformación completada exitosamente")
-        logging.info("=" * 70)
+        logging.info(_SEP)
 
         return df
 
@@ -269,9 +275,9 @@ def clean_and_transform_data(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def validate_data_quality(df: pd.DataFrame) -> bool:
-    logging.info("=" * 70)
+    logging.info(_SEP)
     logging.info("FASE 3: VALIDACIÓN ESTRUCTURAL Y SEMÁNTICA")
-    logging.info("=" * 70)
+    logging.info(_SEP)
 
     try:
         columnas_esperadas = set(settings.EXPECTED_COLUMNS_PROCESSED)
@@ -312,9 +318,9 @@ def validate_data_quality(df: pd.DataFrame) -> bool:
             "date debe estar en formato datetime"
         logging.info("Formato de fechas validado")
 
-        logging.info("=" * 70)
+        logging.info(_SEP)
         logging.info("VALIDACIÓN EXITOSA: Los datos cumplen todas las reglas de calidad")
-        logging.info("=" * 70)
+        logging.info(_SEP)
         return True
 
     except AssertionError as ae:

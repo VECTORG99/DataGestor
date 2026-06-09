@@ -57,6 +57,11 @@ VALIDATION_MONTH_MIN = int(os.getenv("VALIDATION_MONTH_MIN", "1"))
 VALIDATION_MONTH_MAX = int(os.getenv("VALIDATION_MONTH_MAX", "12"))
 VALIDATION_IQR_MULTIPLIER = float(os.getenv("VALIDATION_IQR_MULTIPLIER", "1.5"))
 VALIDATION_ZSCORE_THRESHOLD = float(os.getenv("VALIDATION_ZSCORE_THRESHOLD", "3"))
+VALIDATION_IQR_Q1 = float(os.getenv("VALIDATION_IQR_Q1", "0.25"))
+VALIDATION_IQR_Q3 = float(os.getenv("VALIDATION_IQR_Q3", "0.75"))
+VALIDATION_REPORT_Q05 = float(os.getenv("VALIDATION_REPORT_Q05", "0.05"))
+VALIDATION_REPORT_Q95 = float(os.getenv("VALIDATION_REPORT_Q95", "0.95"))
+OUTLIER_DEFAULT_METHOD = os.getenv("OUTLIER_DEFAULT_METHOD", "iqr")
 
 # ---------------------------------------------------------------------------
 # Nombres de columnas (no configurables por env, pero centralizados)
@@ -77,6 +82,13 @@ EXPECTED_COLUMNS_PROCESSED = [
     "borough", "major_category", "minor_category",
     "year", "month", "total_crimes", "date",
 ]
+
+# ---------------------------------------------------------------------------
+# Transformaciones
+# ---------------------------------------------------------------------------
+COLUMN_RENAME_MAP = {"value": "total_crimes"}
+DATE_DAY_DEFAULT = 1
+SEPARATOR_LENGTH = 70
 
 # ---------------------------------------------------------------------------
 # NULL values
