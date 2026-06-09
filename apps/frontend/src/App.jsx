@@ -36,6 +36,7 @@ import {
 
 import { COLORS, PIE_COLORS, CHART_DEFAULTS } from "./config/chartConfig";
 import { TEXT, UI_LIMITS } from "./config/text";
+import { DB_CONFIG } from "./config/database";
 
 ChartJS.register(
   CategoryScale, LinearScale, BarElement, ArcElement,
@@ -74,7 +75,7 @@ export default function App() {
         return;
       }
       const { data, error } = await supabase
-        .from("london_crime_aggregated")
+        .from(DB_CONFIG.tableName)
         .select("*");
       if (error) {
         setRows([]);
