@@ -2,13 +2,11 @@ import os
 import sys
 import argparse
 import logging
-from pathlib import Path
 
 from dotenv import load_dotenv
 
-ROOT_DIR = Path(__file__).resolve().parents[3]
-if str(ROOT_DIR) not in sys.path:
-    sys.path.insert(0, str(ROOT_DIR))
+if str(settings.PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(settings.PROJECT_ROOT))
 
 from config import settings
 from apps.backend.pipeline.ingestion import ingest_data_from_bigquery, get_sample_data
@@ -83,7 +81,7 @@ def main():
 
         initial_count = len(df)
 
-        stage_manager.save_raw_data(df, filename="london_crime_raw")
+        stage_manager.save_raw_data(df, filename=settings.RAW_FILENAME)
 
         metrics.start_stage("limpieza", records_in=initial_count)
         df_agrupado = clean_and_transform_data(df)
@@ -102,8 +100,8 @@ def main():
 
         stage_manager.validate_and_save_validated(
             df_agrupado,
-            filename="london_crime_validated",
-            validation_report_filename="validation_report",
+            filename=settings.VALIDATED_FILENAME,
+            validation_report_filename=settings.VALIDATION_REPORT_FILENAME,
         )
 
         metrics.start_stage("guardado")
@@ -114,7 +112,7 @@ def main():
 
         stage_manager.save_processed_data(
             df_agrupado,
-            filename="london_crime_processed",
+            filename=settings.PROCESSED_FILENAME,
             formats=settings.EXPORT_FORMATS,
         )
 

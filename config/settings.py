@@ -137,6 +137,14 @@ def get_sample_categories() -> Dict[str, list]:
 
 
 # ---------------------------------------------------------------------------
+# Nombres de archivos del pipeline
+# ---------------------------------------------------------------------------
+RAW_FILENAME = os.getenv("RAW_FILENAME", "london_crime_raw")
+VALIDATED_FILENAME = os.getenv("VALIDATED_FILENAME", "london_crime_validated")
+PROCESSED_FILENAME = os.getenv("PROCESSED_FILENAME", "london_crime_processed")
+VALIDATION_REPORT_FILENAME = os.getenv("VALIDATION_REPORT_FILENAME", "validation_report")
+
+# ---------------------------------------------------------------------------
 # Variables de entorno requeridas
 # ---------------------------------------------------------------------------
 REQUIRED_ENV_VARS_PRODUCTION = ["SUPABASE_DB_URL"]
