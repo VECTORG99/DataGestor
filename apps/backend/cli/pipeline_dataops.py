@@ -12,10 +12,7 @@ if str(PROJECT_ROOT) not in sys.path:
 
 from config import settings
 from apps.backend.pipeline.ingestion import ingest_data_from_bigquery, get_sample_data
-from apps.backend.pipeline.cleaning import (
-    clean_and_transform_data,
-    validate_data_quality,
-)
+from apps.backend.pipeline.cleaning import clean_and_transform_data, validate_data_quality
 from apps.backend.pipeline.loading import load_to_supabase, save_clean_data
 from apps.backend.pipeline.data_stage_manager import DataStageManager
 from apps.backend.pipeline.metrics import MetricsCollector
