@@ -14,6 +14,8 @@ from pathlib import Path
 from typing import Union, Dict, Optional, List
 from datetime import datetime
 
+from config import settings
+
 
 class DataStageManager:
     """
@@ -21,17 +23,13 @@ class DataStageManager:
     Crea automáticamente la estructura de carpetas necesaria.
     """
 
-    def __init__(self, data_root: Union[str, Path] = "data"):
-        """
-        Inicializa el gestor de etapas.
-
-        Args:
-            data_root (str | Path): Raíz del directorio de datos. Por defecto: "data"
-        """
+    def __init__(self, data_root: Union[str, Path] = None):
+        if data_root is None:
+            data_root = settings.DATA_DIR
         self.data_root = Path(data_root)
-        self.raw_dir = self.data_root / "raw"
-        self.validated_dir = self.data_root / "validated"
-        self.processed_dir = self.data_root / "processed"
+        self.raw_dir = settings.RAW_DIR
+        self.validated_dir = settings.VALIDATED_DIR
+        self.processed_dir = settings.PROCESSED_DIR
 
         self._create_directory_structure()
 
@@ -73,8 +71,7 @@ class DataStageManager:
                 f"Tamaño aproximado: {df.memory_usage(deep=True).sum() / 1024 / 1024:.2f} MB"
             )
 
-            # Guardar en Parquet
-            df.to_parquet(parquet_path, index=False, compression="snappy")
+            df.to_parquet(parquet_path, index=False, compression=settings.EXPORT_COMPRESSION)
             logging.info(f"[OK] Datos RAW guardados: {parquet_path}")
 
             return {"parquet": str(parquet_path)}
@@ -119,15 +116,7 @@ class DataStageManager:
         }
 
         try:
-            # 1. Validar columnas obligatorias
-            expected_columns = [
-                "borough",
-                "major_category",
-                "minor_category",
-                "year",
-                "month",
-                "value",
-            ]
+            expected_columns = settings.EXPECTED_COLUMNS_RAW
 
             missing_columns = [col for col in expected_columns if col not in df.columns]
             if missing_columns:
@@ -154,9 +143,8 @@ class DataStageManager:
             range_validation = self._validate_value_ranges(df)
             validation_results["validations"].update(range_validation)
 
-            # Guardar datos validados en Parquet
             parquet_path = self.validated_dir / f"{filename}.parquet"
-            df.to_parquet(parquet_path, index=False, compression="snappy")
+            df.to_parquet(parquet_path, index=False, compression=settings.EXPORT_COMPRESSION)
             logging.info(f"[OK] Datos VALIDATED guardados: {parquet_path}")
 
             result_paths = {"parquet": str(parquet_path)}
@@ -179,23 +167,8 @@ class DataStageManager:
         filename: str = "london_crime_aggregated",
         formats: Optional[List[str]] = None,
     ) -> Dict[str, str]:
-        """
-        Guarda los datos procesados (limpios y transformados) en múltiples formatos.
-
-        Formatos:
-        - Parquet: para almacenamiento eficiente y análisis
-        - CSV: para compatibilidad y visualización
-
-        Args:
-            df (pd.DataFrame): DataFrame limpio y procesado
-            filename (str): Nombre base del archivo
-            formats (list): Formatos a guardar. Por defecto: ['parquet', 'csv']
-
-        Returns:
-            dict[str, str]: Rutas de archivos guardados
-        """
         if formats is None:
-            formats = ["parquet", "csv"]
+            formats = settings.EXPORT_FORMATS
 
         logging.info("=" * 70)
         logging.info("ETAPA PROCESSED: Guardando datos limpios")
@@ -204,16 +177,7 @@ class DataStageManager:
         result_paths = {}
 
         try:
-            # Verificar columnas esperadas
-            expected_columns = [
-                "borough",
-                "major_category",
-                "minor_category",
-                "year",
-                "month",
-                "total_crimes",
-                "date",
-            ]
+            expected_columns = settings.EXPECTED_COLUMNS_PROCESSED
             missing = [col for col in expected_columns if col not in df.columns]
             if missing:
                 logging.warning(f"[WARN] Columnas faltantes: {missing}")
@@ -229,7 +193,7 @@ class DataStageManager:
             # Guardar en Parquet si se solicita
             if "parquet" in formats:
                 parquet_path = self.processed_dir / f"{filename}.parquet"
-                df.to_parquet(parquet_path, index=False, compression="snappy")
+                df.to_parquet(parquet_path, index=False, compression=settings.EXPORT_COMPRESSION)
                 logging.info(f"[OK] Datos PROCESSED guardados (Parquet): {parquet_path}")
                 result_paths["parquet"] = str(parquet_path)
 
@@ -247,16 +211,10 @@ class DataStageManager:
             raise
 
     def _validate_data_types(self, df: pd.DataFrame) -> Dict[str, bool]:
-        """
-        Valida que los tipos de datos sean los esperados.
-
-        Returns:
-            dict: Resultados de validación
-        """
         logging.info("Validando tipos de datos...")
         results = {"data_types_valid": True}
 
-        type_checks = {
+        TYPE_CHECKS = {
             "year": ["int", "Int64"],
             "month": ["int", "Int64"],
             "value": ["float", "float64"],
@@ -265,7 +223,7 @@ class DataStageManager:
             "minor_category": ["string", "object"],
         }
 
-        for col, expected_types in type_checks.items():
+        for col, expected_types in TYPE_CHECKS.items():
             if col in df.columns:
                 actual_type = str(df[col].dtype)
                 is_valid = any(exp_type in actual_type for exp_type in expected_types)
@@ -280,17 +238,10 @@ class DataStageManager:
         return results
 
     def _validate_null_values(self, df: pd.DataFrame) -> Dict[str, int]:
-        """
-        Detecta valores nulos en columnas críticas.
-
-        Returns:
-            dict: Conteo de nulos por columna
-        """
         logging.info("Validando valores nulos...")
         results = {}
 
-        critical_columns = ["borough", "major_category", "value", "year", "month"]
-        for col in critical_columns:
+        for col in settings.CRITICAL_COLUMNS:
             if col in df.columns:
                 null_count = df[col].isnull().sum()
                 results[f"nulls_{col}"] = null_count
@@ -321,31 +272,30 @@ class DataStageManager:
         return results
 
     def _validate_value_ranges(self, df: pd.DataFrame) -> Dict[str, bool]:
-        """
-        Valida que los valores estén en rangos válidos.
-
-        Returns:
-            dict: Resultados de validación de rangos
-        """
         logging.info("Validando rangos de valores...")
         results = {"ranges_valid": True}
 
-        # Validar meses (1-12)
         if "month" in df.columns:
-            invalid_months = df["month"].notna() & ~df["month"].between(1, 12)
+            invalid_months = df["month"].notna() & ~df["month"].between(
+                settings.VALIDATION_MONTH_MIN, settings.VALIDATION_MONTH_MAX
+            )
             if invalid_months.sum() > 0:
-                logging.warning(f"  [WARN] {invalid_months.sum()} meses fuera de rango (1-12)")
+                logging.warning(
+                    f"  [WARN] {invalid_months.sum()} meses fuera de rango "
+                    f"({settings.VALIDATION_MONTH_MIN}-{settings.VALIDATION_MONTH_MAX})"
+                )
                 results["ranges_valid"] = False
             else:
-                logging.info("  [OK] Meses en rango válido (1-12)")
+                logging.info(
+                    f"  [OK] Meses en rango válido "
+                    f"({settings.VALIDATION_MONTH_MIN}-{settings.VALIDATION_MONTH_MAX})"
+                )
 
-        # Validar años (rango razonable)
         if "year" in df.columns:
             year_min = df["year"].min()
             year_max = df["year"].max()
-            logging.info(f"  [OK] Anos: {year_min} - {year_max}")
+            logging.info(f"  [OK] Años: {year_min} - {year_max}")
 
-        # Validar valores no negativos
         if "value" in df.columns:
             negative_values = (df["value"] < 0).sum()
             if negative_values > 0:

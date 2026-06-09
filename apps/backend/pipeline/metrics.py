@@ -5,6 +5,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
+from config import settings
+
 
 @dataclass
 class StageMetric:
@@ -124,7 +126,9 @@ class MetricsCollector:
         self.metrics.total_duration_seconds = time.time() - self._start_time
         return self.metrics
 
-    def save(self, metrics_dir: Path):
+    def save(self, metrics_dir: Path = None):
+        if metrics_dir is None:
+            metrics_dir = settings.METRICS_DIR
         metrics_dir.mkdir(parents=True, exist_ok=True)
         path = metrics_dir / "pipeline_metrics.jsonl"
         with open(path, "a") as f:

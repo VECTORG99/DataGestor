@@ -1,82 +1,40 @@
-"""
-Módulo de Limpieza y Transformación de Datos
-Responsable de limpiar, transformar y validar la calidad de los datos.
-Implementa validaciones exhaustivas para el dataset London Crime.
-"""
-
 import logging
 import pandas as pd
 import numpy as np
 from datetime import datetime
 
-# Configuración de valores considerados como nulos
-NULL_VALUES = {
-    None,
-    "",
-    "NULL",
-    "null",
-    "None",
-    "Unknown",
-    "unknown",
-    "N/A",
-    "n/a",
-    "NaN",
-}
+from config import settings
 
 
 def standardize_column_names(df: pd.DataFrame) -> pd.DataFrame:
-    """
-    Estandariza los nombres de columnas a minúsculas con guiones bajos.
-
-    Args:
-        df (pd.DataFrame): DataFrame original
-
-    Returns:
-        pd.DataFrame: DataFrame con columnas renombradas
-    """
     df.columns = df.columns.str.lower().str.replace(" ", "_").str.replace("-", "_")
     logging.info(f"Columnas estandarizadas: {list(df.columns)}")
     return df
 
 
 def handle_null_values(df: pd.DataFrame, columns_to_check: list = None) -> pd.DataFrame:
-    """
-    Detecta y maneja valores nulos, vacíos, 'Unknown' y 'N/A'.
-
-    Args:
-        df (pd.DataFrame): DataFrame a procesar
-        columns_to_check (list): Columnas a validar (None = todas)
-
-    Returns:
-        pd.DataFrame: DataFrame con nulos manejados
-    """
     logging.info("Paso 1: Detectando y manejando valores nulos...")
     initial_rows = len(df)
 
     if columns_to_check is None:
         columns_to_check = df.columns.tolist()
 
-    # Reportar valores nulos encontrados
     null_report = {}
     for col in columns_to_check:
         if col in df.columns:
-            # Detectar valores nulos tradicionales
             null_mask = df[col].isnull()
-            # Detectar valores nulos codificados como strings
-            if df[col].dtype == "object":
-                null_mask |= df[col].isin(NULL_VALUES)
+            if df[col].dtype in ("object", "string"):
+                null_mask |= df[col].isin(settings.NULL_VALUES)
             null_count = null_mask.sum()
             if null_count > 0:
                 null_report[col] = null_count
                 logging.info(f"  {col}: {null_count} valores nulos detectados")
 
-    # Eliminar filas con nulos en columnas críticas
-    critical_columns = ["borough", "major_category", "value", "year", "month"]
-    for col in critical_columns:
+    for col in settings.CRITICAL_COLUMNS:
         if col in df.columns:
             df = df[df[col].notna()]
-            if df[col].dtype == "object":
-                df = df[~df[col].isin(NULL_VALUES)]
+            if df[col].dtype in ("object", "string"):
+                df = df[~df[col].isin(settings.NULL_VALUES)]
 
     rows_removed = initial_rows - len(df)
     logging.info(f"  Filas eliminadas por valores nulos: {rows_removed}")
@@ -84,39 +42,22 @@ def handle_null_values(df: pd.DataFrame, columns_to_check: list = None) -> pd.Da
 
 
 def validate_data_types(df: pd.DataFrame) -> pd.DataFrame:
-    """
-    Valida y convierte los tipos de datos al formato correcto.
-
-    Args:
-        df (pd.DataFrame): DataFrame a procesar
-
-    Returns:
-        pd.DataFrame: DataFrame con tipos de datos corregidos
-
-    Raises:
-        ValueError: Si la conversión de tipos falla
-    """
     logging.info("Paso 2: Validando y corrigiendo tipos de datos...")
 
     try:
-        # Convertir year a entero
         if "year" in df.columns:
             df["year"] = pd.to_numeric(df["year"], errors="coerce").astype("Int64")
             logging.info("  year convertido a Int64")
 
-        # Convertir month a entero
         if "month" in df.columns:
             df["month"] = pd.to_numeric(df["month"], errors="coerce").astype("Int64")
             logging.info("  month convertido a Int64")
 
-        # Convertir value a numérico
         if "value" in df.columns:
             df["value"] = pd.to_numeric(df["value"], errors="coerce").astype("float64")
             logging.info("  value convertido a float64")
 
-        # Convertir categorías y boroughs a string
-        text_columns = ["borough", "major_category", "minor_category"]
-        for col in text_columns:
+        for col in settings.TEXT_COLUMNS:
             if col in df.columns:
                 df[col] = df[col].astype("string")
                 logging.info(f"  {col} convertido a string")
@@ -129,37 +70,29 @@ def validate_data_types(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def validate_value_ranges(df: pd.DataFrame) -> pd.DataFrame:
-    """
-    Detecta y elimina registros con valores fuera de rango.
-
-    Args:
-        df (pd.DataFrame): DataFrame a procesar
-
-    Returns:
-        pd.DataFrame: DataFrame sin registros fuera de rango
-    """
     logging.info("Paso 3: Validando rangos de valores...")
     initial_rows = len(df)
 
-    # Validar meses (1-12)
     if "month" in df.columns:
-        invalid_months = ~df["month"].between(1, 12)
+        invalid_months = ~df["month"].between(
+            settings.VALIDATION_MONTH_MIN, settings.VALIDATION_MONTH_MAX
+        )
         month_invalid = invalid_months.sum()
         if month_invalid > 0:
-            logging.warning(f"  {month_invalid} registros con meses inválidos (fuera de 1-12)")
+            logging.warning(
+                f"  {month_invalid} registros con meses inválidos "
+                f"(fuera de {settings.VALIDATION_MONTH_MIN}-{settings.VALIDATION_MONTH_MAX})"
+            )
             df = df[~invalid_months]
 
-    # Validar años (razonables para London Crime)
     if "year" in df.columns:
-        # Asumiendo que los datos son de 2000 en adelante y no en el futuro
         current_year = datetime.now().year
-        invalid_years = ~df["year"].between(2000, current_year)
+        invalid_years = ~df["year"].between(settings.VALIDATION_MIN_YEAR, current_year)
         year_invalid = invalid_years.sum()
         if year_invalid > 0:
             logging.warning(f"  {year_invalid} registros con años inválidos")
             df = df[~invalid_years]
 
-    # Validar valores negativos
     if "value" in df.columns:
         negative_values = (df["value"] < 0).sum()
         if negative_values > 0:
@@ -172,60 +105,24 @@ def validate_value_ranges(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def normalize_text_fields(df: pd.DataFrame) -> pd.DataFrame:
-    """
-    Normaliza nombres de boroughs y categorías:
-    - Elimina espacios innecesarios
-    - Unifica mayúsculas/minúsculas
-    - Corrige errores ortográficos comunes
-
-    Args:
-        df (pd.DataFrame): DataFrame a procesar
-
-    Returns:
-        pd.DataFrame: DataFrame con campos normalizados
-    """
     logging.info("Paso 4: Normalizando campos de texto...")
 
-    text_columns = ["borough", "major_category", "minor_category"]
-
-    for col in text_columns:
+    for col in settings.TEXT_COLUMNS:
         if col in df.columns:
-            # Strip espacios y convertir a título case
             df[col] = df[col].str.strip().str.title()
             logging.info(f"  {col} normalizado (espacios eliminados, caso unificado)")
 
-    # Diccionario de correcciones ortográficas comunes
-    borough_corrections = {
-        "City Of London": "City of London",
-        "Kensington And Chelsea": "Kensington and Chelsea",
-        "Hammersmith And Fulham": "Hammersmith and Fulham",
-        "Barking And Dagenham": "Barking and Dagenham",
-    }
-
     if "borough" in df.columns:
-        df["borough"] = df["borough"].replace(borough_corrections)
+        df["borough"] = df["borough"].replace(settings.BOROUGH_CORRECTIONS)
         logging.info("  Correcciones ortográficas aplicadas a boroughs")
 
     return df
 
 
 def detect_and_remove_duplicates(df: pd.DataFrame) -> pd.DataFrame:
-    """
-    Detecta y elimina duplicados completamente idénticos.
-    Nota: Los registros con misma (borough, major_category, year, month) pero diferentes
-    valores representan múltiples incidentes del mismo tipo de crimen. Estos se agregan
-    en la siguiente función aggregate_crime_data().
-
-    Args:
-        df (pd.DataFrame): DataFrame a procesar
-
-    Returns:
-        pd.DataFrame: DataFrame sin duplicados completamente idénticos
-    """
     logging.info("Paso 5: Detectando y eliminando duplicados completamente idénticos...")
     initial_rows = len(df)
 
-    # Detectar duplicados completamente idénticos (todas las columnas iguales)
     complete_duplicates = df.duplicated().sum()
     if complete_duplicates > 0:
         logging.warning(f"  {complete_duplicates} registros completamente duplicados")
@@ -237,29 +134,11 @@ def detect_and_remove_duplicates(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def aggregate_crime_data(df: pd.DataFrame) -> pd.DataFrame:
-    """
-    Agrupa registros por (borough, major_category, minor_category, year, month)
-    y suma los valores de crímenes.
-
-    Múltiples incidentes del mismo tipo de crimen en la misma ubicación y período
-    se consolidan sumando sus valores. Se mantiene el desglose por tipo de crimen.
-
-    Args:
-        df (pd.DataFrame): DataFrame a procesar
-
-    Returns:
-        pd.DataFrame: DataFrame con crímenes agregados y columna total_crimes
-    """
     logging.info("Paso 6: Agregando crímenes por ubicación, tipo y período...")
     initial_rows = len(df)
 
-    # Agrupar por ubicación, tipo de crimen y período, sumando los valores
-    groupby_cols = ["borough", "major_category", "minor_category", "year", "month"]
-
-    if all(col in df.columns for col in groupby_cols):
-        df_aggregated = df.groupby(groupby_cols, as_index=False).agg({"value": "sum"})
-
-        # Renombrar 'value' a 'total_crimes'
+    if all(col in df.columns for col in settings.GROUPBY_COLS):
+        df_aggregated = df.groupby(settings.GROUPBY_COLS, as_index=False).agg({"value": "sum"})
         df_aggregated = df_aggregated.rename(columns={"value": "total_crimes"})
 
         rows_aggregated = initial_rows - len(df_aggregated)
@@ -278,20 +157,10 @@ def aggregate_crime_data(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def create_date_column(df: pd.DataFrame) -> pd.DataFrame:
-    """
-    Crea una columna de fecha unificada en formato datetime.
-
-    Args:
-        df (pd.DataFrame): DataFrame a procesar
-
-    Returns:
-        pd.DataFrame: DataFrame con columna de fecha adicional
-    """
     logging.info("Paso 7: Creando columna de fecha unificada...")
 
     if "year" in df.columns and "month" in df.columns:
         try:
-            # Crear fecha asumiendo el primer día del mes
             df["date"] = pd.to_datetime(df[["year", "month"]].assign(day=1), errors="coerce")
             logging.info("  Columna 'date' creada en formato datetime")
         except Exception as e:
@@ -301,16 +170,6 @@ def create_date_column(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def detect_outliers(df: pd.DataFrame, method: str = "iqr") -> dict:
-    """
-    Detecta valores atípicos (outliers) en la columna 'total_crimes'.
-
-    Args:
-        df (pd.DataFrame): DataFrame a procesar
-        method (str): Método de detección ('iqr' o 'zscore')
-
-    Returns:
-        dict: Información sobre outliers detectados
-    """
     logging.info("Paso 8: Detectando valores atípicos (outliers)...")
 
     outliers_info = {
@@ -328,8 +187,8 @@ def detect_outliers(df: pd.DataFrame, method: str = "iqr") -> dict:
         Q1 = df["total_crimes"].quantile(0.25)
         Q3 = df["total_crimes"].quantile(0.75)
         IQR = Q3 - Q1
-        lower_bound = Q1 - 1.5 * IQR
-        upper_bound = Q3 + 1.5 * IQR
+        lower_bound = Q1 - settings.VALIDATION_IQR_MULTIPLIER * IQR
+        upper_bound = Q3 + settings.VALIDATION_IQR_MULTIPLIER * IQR
 
         outlier_mask = (df["total_crimes"] < lower_bound) | (df["total_crimes"] > upper_bound)
 
@@ -337,7 +196,7 @@ def detect_outliers(df: pd.DataFrame, method: str = "iqr") -> dict:
         z_scores = np.abs(
             (df["total_crimes"] - df["total_crimes"].mean()) / df["total_crimes"].std()
         )
-        outlier_mask = z_scores > 3
+        outlier_mask = z_scores > settings.VALIDATION_ZSCORE_THRESHOLD
 
     else:
         logging.warning(f"Método desconocido: {method}")
@@ -365,28 +224,10 @@ def detect_outliers(df: pd.DataFrame, method: str = "iqr") -> dict:
 
 
 def remove_unnecessary_columns(df: pd.DataFrame, keep_columns: list = None) -> pd.DataFrame:
-    """
-    Elimina columnas innecesarias o redundantes.
-
-    Args:
-        df (pd.DataFrame): DataFrame a procesar
-        keep_columns (list): Columnas que deben mantenerse (None = automático)
-
-    Returns:
-        pd.DataFrame: DataFrame con columnas optimizadas
-    """
     logging.info("Paso 9: Eliminando columnas innecesarias...")
 
     if keep_columns is None:
-        keep_columns = [
-            "borough",
-            "major_category",
-            "minor_category",
-            "year",
-            "month",
-            "total_crimes",
-            "date",
-        ]
+        keep_columns = settings.KEEP_COLUMNS
 
     columns_to_drop = [col for col in df.columns if col not in keep_columns]
 
@@ -398,52 +239,21 @@ def remove_unnecessary_columns(df: pd.DataFrame, keep_columns: list = None) -> p
 
 
 def clean_and_transform_data(df: pd.DataFrame) -> pd.DataFrame:
-    """
-    Orquesta todo el proceso de limpieza y transformación del dataset.
-
-    Args:
-        df (pd.DataFrame): DataFrame con datos sin procesar
-
-    Returns:
-        pd.DataFrame: DataFrame limpio y transformado
-
-    Raises:
-        Exception: Si hay error durante la limpieza
-    """
     logging.info("=" * 70)
     logging.info("FASE 2: LIMPIEZA Y TRANSFORMACIÓN DE DATOS")
     logging.info("=" * 70)
     logging.info(f"Registros iniciales: {len(df)}")
 
     try:
-        # 1. Estandarizar nombres de columnas
         df = standardize_column_names(df)
-
-        # 2. Manejo de valores nulos
         df = handle_null_values(df)
-
-        # 3. Validación de tipos de datos
         df = validate_data_types(df)
-
-        # 4. Validación de rangos
         df = validate_value_ranges(df)
-
-        # 5. Normalización de texto
         df = normalize_text_fields(df)
-
-        # 6. Eliminación de duplicados completamente idénticos
         df = detect_and_remove_duplicates(df)
-
-        # 6b. Agregación de crímenes por ubicación, tipo y período
         df = aggregate_crime_data(df)
-
-        # 7. Crear columna de fecha
         df = create_date_column(df)
-
-        # 8. Detectar outliers (solo reporta, no elimina)
         detect_outliers(df, method="iqr")
-
-        # 9. Eliminar columnas innecesarias
         df = remove_unnecessary_columns(df)
 
         logging.info("=" * 70)
@@ -459,40 +269,18 @@ def clean_and_transform_data(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def validate_data_quality(df: pd.DataFrame) -> bool:
-    """
-    Valida la calidad estructural y semántica de los datos después de la limpieza.
-
-    Args:
-        df (pd.DataFrame): DataFrame a validar
-
-    Returns:
-        bool: True si pasa todas las validaciones
-
-    Raises:
-        AssertionError: Si alguna validación falla
-    """
     logging.info("=" * 70)
     logging.info("FASE 3: VALIDACIÓN ESTRUCTURAL Y SEMÁNTICA")
     logging.info("=" * 70)
 
     try:
-        # Validar esquema
-        columnas_esperadas = {
-            "borough",
-            "major_category",
-            "minor_category",
-            "year",
-            "month",
-            "total_crimes",
-            "date",
-        }
+        columnas_esperadas = set(settings.EXPECTED_COLUMNS_PROCESSED)
         columnas_presentes = set(df.columns)
         assert columnas_esperadas.issubset(
             columnas_presentes
         ), f"Columnas faltantes: {columnas_esperadas - columnas_presentes}"
         logging.info("Esquema de columnas validado")
 
-        # Validar tipos de datos
         assert df["year"].dtype in ["int64", "Int64"], "year debe ser entero"
         assert df["month"].dtype in ["int64", "Int64"], "month debe ser entero"
         assert df["total_crimes"].dtype in [
@@ -502,26 +290,26 @@ def validate_data_quality(df: pd.DataFrame) -> bool:
         ], "total_crimes debe ser numérico"
         logging.info("Tipos de datos validados")
 
-        # Validar completitud (no nulos)
         null_count = df[["borough", "year", "month", "total_crimes"]].isnull().sum().sum()
         assert null_count == 0, f"Existen {null_count} valores nulos en el dataset limpio"
         logging.info("Sin valores nulos en columnas críticas")
 
-        # Validar semántica
-        assert (df["year"] >= 2000).all(), "Años menores a 2000 detectados"
-        assert (df["month"].between(1, 12)).all(), "Meses fuera del rango 1-12 detectados"
+        assert (df["year"] >= settings.VALIDATION_MIN_YEAR).all(), \
+            f"Años menores a {settings.VALIDATION_MIN_YEAR} detectados"
+        assert (df["month"].between(
+            settings.VALIDATION_MONTH_MIN, settings.VALIDATION_MONTH_MAX
+        )).all(), "Meses fuera del rango válido detectados"
         assert (df["total_crimes"] >= 0).all(), "Valores negativos en incidentes detectados"
         logging.info("Rangos de valores validados")
 
-        # Validar sin duplicados (usando los mismos campos de agrupación que en agregación)
         duplicates = df.duplicated(
-            subset=["borough", "major_category", "minor_category", "year", "month"]
+            subset=settings.GROUPBY_COLS
         ).sum()
         assert duplicates == 0, f"Se encontraron {duplicates} registros duplicados"
         logging.info("Sin registros duplicados")
 
-        # Validar formato de fechas
-        assert df["date"].dtype == "datetime64[ns]", "date debe estar en formato datetime"
+        assert df["date"].dtype in ("datetime64[ns]", "datetime64[us]"), \
+            "date debe estar en formato datetime"
         logging.info("Formato de fechas validado")
 
         logging.info("=" * 70)

@@ -1,0 +1,121 @@
+import os
+from pathlib import Path
+from typing import List
+
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+
+# ---------------------------------------------------------------------------
+# Directorios
+# ---------------------------------------------------------------------------
+DATA_DIR = Path(os.getenv("DATA_DIR", PROJECT_ROOT / "data"))
+RAW_DIR = Path(os.getenv("RAW_DIR", DATA_DIR / "raw"))
+VALIDATED_DIR = Path(os.getenv("VALIDATED_DIR", DATA_DIR / "validated"))
+PROCESSED_DIR = Path(os.getenv("PROCESSED_DIR", DATA_DIR / "processed"))
+LOG_DIR = Path(os.getenv("LOG_DIR", DATA_DIR / "logs"))
+METRICS_DIR = Path(os.getenv("METRICS_DIR", DATA_DIR / "metrics"))
+
+# ---------------------------------------------------------------------------
+# Logging
+# ---------------------------------------------------------------------------
+LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")
+LOG_FORMAT = os.getenv("LOG_FORMAT", "%(asctime)s [%(levelname)s] %(message)s")
+LOG_FILENAME = os.getenv("LOG_FILENAME", "pipeline.log")
+
+# ---------------------------------------------------------------------------
+# GCP / BigQuery
+# ---------------------------------------------------------------------------
+GCP_PROJECT_ID = os.getenv("GCP_PROJECT_ID", "london-crime-491323")
+BIGQUERY_TABLE = os.getenv(
+    "BIGQUERY_TABLE", "bigquery-public-data.london_crime.crime_by_lsoa"
+)
+BIGQUERY_ROW_LIMIT = int(os.getenv("BIGQUERY_ROW_LIMIT", "100000"))
+GOOGLE_APPLICATION_CREDENTIALS_FALLBACK = os.getenv(
+    "GOOGLE_APPLICATION_CREDENTIALS_FALLBACK",
+    str(PROJECT_ROOT / "config" / "credentials.json"),
+)
+
+# ---------------------------------------------------------------------------
+# Supabase / Database
+# ---------------------------------------------------------------------------
+SUPABASE_TABLE_NAME = os.getenv("SUPABASE_TABLE_NAME", "london_crime_aggregated")
+DB_IF_EXISTS = os.getenv("DB_IF_EXISTS", "replace")
+DB_CHUNKSIZE = int(os.getenv("DB_CHUNKSIZE", "1000"))
+DB_ECHO = os.getenv("DB_ECHO", "false").lower() == "true"
+
+# ---------------------------------------------------------------------------
+# Export
+# ---------------------------------------------------------------------------
+EXPORT_COMPRESSION = os.getenv("EXPORT_COMPRESSION", "snappy")
+EXPORT_FORMATS: List[str] = os.getenv("EXPORT_FORMATS", "parquet,csv").split(",")
+
+# ---------------------------------------------------------------------------
+# Validación de rangos
+# ---------------------------------------------------------------------------
+VALIDATION_MIN_YEAR = int(os.getenv("VALIDATION_MIN_YEAR", "2000"))
+VALIDATION_MONTH_MIN = int(os.getenv("VALIDATION_MONTH_MIN", "1"))
+VALIDATION_MONTH_MAX = int(os.getenv("VALIDATION_MONTH_MAX", "12"))
+VALIDATION_IQR_MULTIPLIER = float(os.getenv("VALIDATION_IQR_MULTIPLIER", "1.5"))
+VALIDATION_ZSCORE_THRESHOLD = float(os.getenv("VALIDATION_ZSCORE_THRESHOLD", "3"))
+
+# ---------------------------------------------------------------------------
+# Nombres de columnas (no configurables por env, pero centralizados)
+# ---------------------------------------------------------------------------
+CRITICAL_COLUMNS = ["borough", "major_category", "value", "year", "month"]
+TEXT_COLUMNS = ["borough", "major_category", "minor_category"]
+GROUPBY_COLS = [
+    "borough", "major_category", "minor_category", "year", "month",
+]
+KEEP_COLUMNS = [
+    "borough", "major_category", "minor_category",
+    "year", "month", "total_crimes", "date",
+]
+EXPECTED_COLUMNS_RAW = [
+    "borough", "major_category", "minor_category", "year", "month", "value",
+]
+EXPECTED_COLUMNS_PROCESSED = [
+    "borough", "major_category", "minor_category",
+    "year", "month", "total_crimes", "date",
+]
+
+# ---------------------------------------------------------------------------
+# NULL values
+# ---------------------------------------------------------------------------
+NULL_VALUES = frozenset({
+    "", "NULL", "null", "None", "Unknown", "unknown", "N/A", "n/a", "NaN",
+})
+
+# ---------------------------------------------------------------------------
+# Borough corrections
+# ---------------------------------------------------------------------------
+BOROUGH_CORRECTIONS = {
+    "City Of London": "City of London",
+    "Kensington And Chelsea": "Kensington and Chelsea",
+    "Hammersmith And Fulham": "Hammersmith and Fulham",
+    "Barking And Dagenham": "Barking and Dagenham",
+}
+
+# ---------------------------------------------------------------------------
+# Sample data defaults
+# ---------------------------------------------------------------------------
+SAMPLE_N_ROWS = int(os.getenv("SAMPLE_N_ROWS", "150"))
+SAMPLE_RANDOM_SEED = int(os.getenv("SAMPLE_RANDOM_SEED", "42"))
+SAMPLE_POISSON_MEAN = int(os.getenv("SAMPLE_POISSON_MEAN", "15"))
+SAMPLE_YEARS = [2016, 2017, 2018, 2019]
+SAMPLE_LSOA_RANGE = (1, 200)
+
+# ---------------------------------------------------------------------------
+# Variables de entorno requeridas
+# ---------------------------------------------------------------------------
+REQUIRED_ENV_VARS_PRODUCTION = ["SUPABASE_DB_URL"]
+REQUIRED_ENV_VARS_DEMO: List[str] = []
+
+
+def validate_required_env_vars(demo_mode: bool = False) -> None:
+    required = REQUIRED_ENV_VARS_DEMO if demo_mode else REQUIRED_ENV_VARS_PRODUCTION
+    missing = [var for var in required if not os.getenv(var)]
+    if missing:
+        raise EnvironmentError(
+            "Faltan variables de entorno requeridas:\n  "
+            + "\n  ".join(missing)
+            + "\n\nConfigúralas en tu archivo .env o pásalas como variable de entorno."
+        )

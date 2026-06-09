@@ -292,4 +292,3 @@ docker exec london_crime_app python apps/backend/cli/pipeline_dataops.py --demo
   docker compose -f infra/docker-compose.yml down -v
   ```
 
-hola samuel

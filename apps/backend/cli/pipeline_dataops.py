@@ -10,23 +10,23 @@ ROOT_DIR = Path(__file__).resolve().parents[3]
 if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
 
-from apps.backend.pipeline.ingestion import ingest_data_from_bigquery, get_sample_data  # noqa: E402
-from apps.backend.pipeline.cleaning import (  # noqa: E402
+from config import settings
+from apps.backend.pipeline.ingestion import ingest_data_from_bigquery, get_sample_data
+from apps.backend.pipeline.cleaning import (
     clean_and_transform_data,
     validate_data_quality,
 )
-from apps.backend.pipeline.loading import load_to_supabase, save_clean_data  # noqa: E402
-from apps.backend.pipeline.data_stage_manager import DataStageManager  # noqa: E402
-from apps.backend.pipeline.metrics import MetricsCollector  # noqa: E402
+from apps.backend.pipeline.loading import load_to_supabase, save_clean_data
+from apps.backend.pipeline.data_stage_manager import DataStageManager
+from apps.backend.pipeline.metrics import MetricsCollector
 
-# Configurar logs para guardar evidencia
-log_dir = ROOT_DIR / "data" / "logs"
+log_dir = settings.LOG_DIR
 log_dir.mkdir(parents=True, exist_ok=True)
 logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(message)s",
+    level=getattr(logging, settings.LOG_LEVEL, logging.INFO),
+    format=settings.LOG_FORMAT,
     handlers=[
-        logging.FileHandler(str(log_dir / "pipeline.log")),
+        logging.FileHandler(str(log_dir / settings.LOG_FILENAME)),
         logging.StreamHandler(),
     ],
 )
@@ -41,15 +41,25 @@ def main():
     )
     args = parser.parse_args()
 
+    load_dotenv(dotenv_path=settings.PROJECT_ROOT / ".env")
+
+    try:
+        settings.validate_required_env_vars(demo_mode=args.demo)
+    except EnvironmentError as e:
+        logging.warning(f"Validación de entorno: {e}")
+        if not args.demo:
+            logging.warning("El pipeline continuará en modo demo automáticamente.")
+            args.demo = True
+
     logging.info("--- INICIANDO PIPELINE DATAOPS ---")
-    load_dotenv(dotenv_path=ROOT_DIR / ".env")
 
     metrics = MetricsCollector()
 
-    # Autenticar GCP (solo si no es modo demo)
     if not args.demo:
-        credentials_path = ROOT_DIR / "config" / "credentials.json"
-        if credentials_path.exists():
+        credentials_path = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
+        if not credentials_path:
+            credentials_path = settings.GOOGLE_APPLICATION_CREDENTIALS_FALLBACK
+        if os.path.exists(credentials_path):
             os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = str(credentials_path)
             logging.info("Credenciales de Google Cloud configuradas")
         else:
@@ -59,36 +69,30 @@ def main():
     metrics.set_demo_mode(args.demo)
 
     try:
-        # Inicializar gestor de etapas del pipeline
-        stage_manager = DataStageManager(data_root=ROOT_DIR / "data")
+        stage_manager = DataStageManager(data_root=settings.DATA_DIR)
 
-        # 1. INGESTA
         metrics.start_stage("ingesta")
         if args.demo:
             logging.info("=" * 70)
             logging.info("FASE 1: INGESTA - MODO DEMO (datos sintéticos)")
             logging.info("=" * 70)
-            df = get_sample_data(n_rows=150)
+            df = get_sample_data(n_rows=settings.SAMPLE_N_ROWS)
         else:
             df = ingest_data_from_bigquery()
         metrics.end_stage(records_out=len(df))
 
         initial_count = len(df)
 
-        # 2. GUARDAR DATOS RAW (datos originales sin modificar)
         stage_manager.save_raw_data(df, filename="london_crime_raw")
 
-        # 3. LIMPIEZA Y TRANSFORMACIÓN
         metrics.start_stage("limpieza", records_in=initial_count)
         df_agrupado = clean_and_transform_data(df)
         metrics.end_stage(records_out=len(df_agrupado))
 
-        # 4. VALIDACIÓN
         metrics.start_stage("validacion")
         validate_data_quality(df_agrupado)
         metrics.end_stage()
 
-        # Calcular completitud
         null_count = df_agrupado[["borough", "year", "month", "total_crimes"]].isnull().sum().sum()
         total_cells = len(df_agrupado) * 4
         completeness = (
@@ -96,26 +100,24 @@ def main():
         )
         metrics.set_completeness(completeness)
 
-        # 5. GUARDAR DATOS VALIDATED (después de validación, antes de limpieza)
         stage_manager.validate_and_save_validated(
             df_agrupado,
             filename="london_crime_validated",
             validation_report_filename="validation_report",
         )
 
-        # 6. GUARDADO LOCAL DE DATOS PROCESADOS
         metrics.start_stage("guardado")
-        output_dir = ROOT_DIR / "data" / "processed"
+        output_dir = settings.PROCESSED_DIR
         rutas = save_clean_data(df_agrupado, output_dir)
         metrics.end_stage()
         logging.info(f"Archivos guardados: {rutas}")
 
-        # 7. GUARDAR DATOS PROCESSED (referencia de datos finales)
         stage_manager.save_processed_data(
-            df_agrupado, filename="london_crime_processed", formats=["parquet", "csv"]
+            df_agrupado,
+            filename="london_crime_processed",
+            formats=settings.EXPORT_FORMATS,
         )
 
-        # 8. CARGA A SUPABASE (opcional - si SUPABASE_DB_URL está configurado)
         metrics.start_stage("carga_supabase")
         try:
             load_to_supabase(df_agrupado)
@@ -124,19 +126,17 @@ def main():
             logging.warning("El pipeline continúa. Verifica la configuración en .env")
         metrics.end_stage()
 
-        # Finalizar y guardar KPIs
         metrics.set_records(initial_count, len(df_agrupado))
         final_metrics = metrics.finalize()
 
-        metrics_dir = ROOT_DIR / "data" / "metrics"
-        metrics_path = metrics.save(metrics_dir)
+        metrics_path = metrics.save(settings.METRICS_DIR)
         logging.info(f"KPIs guardados en: {metrics_path}")
 
         kpi_summary = final_metrics.summary()
         for line in kpi_summary.split("\n"):
             logging.info(line)
 
-        logging.info("--- PIPELINE DATAOPS FINALIZADO CON EXITO ---")
+        logging.info("--- PIPELINE DATAOPS FINALIZADO CON ÉXITO ---")
 
     except Exception as e:
         logging.error(f"Pipeline falló: {e}")

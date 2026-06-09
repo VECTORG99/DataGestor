@@ -8,6 +8,8 @@ import os
 import pandas as pd
 import numpy as np
 
+from config import settings
+
 
 SAMPLE_BOROUGHS = [
     "City of London",
@@ -69,20 +71,15 @@ MAJOR_CATEGORIES = {
 }
 
 
-def get_sample_data(n_rows: int = 150) -> pd.DataFrame:
-    """
-    Genera un DataFrame sintético que replica la estructura del dataset
-    `bigquery-public-data.london_crime.crime_by_lsoa`.
+def get_sample_data(n_rows: int = None) -> pd.DataFrame:
+    if n_rows is None:
+        n_rows = settings.SAMPLE_N_ROWS
 
-    Args:
-        n_rows (int): Número aproximado de registros a generar.
-
-    Returns:
-        pd.DataFrame: Datos sintéticos listos para el pipeline de limpieza.
-    """
-    np.random.seed(42)
+    np.random.seed(settings.SAMPLE_RANDOM_SEED)
     records = []
-    lsoa_pool = [f"E010{n:05d}" for n in range(1, 200)]
+    lsoa_pool = [
+        f"E010{n:05d}" for n in range(settings.SAMPLE_LSOA_RANGE[0], settings.SAMPLE_LSOA_RANGE[1])
+    ]
 
     for _ in range(n_rows):
         borough = np.random.choice(SAMPLE_BOROUGHS)
@@ -94,18 +91,18 @@ def get_sample_data(n_rows: int = 150) -> pd.DataFrame:
                 "borough": borough,
                 "major_category": major,
                 "minor_category": minor,
-                "value": int(np.random.poisson(15)),
-                "year": int(np.random.choice([2016, 2017, 2018, 2019])),
-                "month": int(np.random.randint(1, 13)),
+                "value": int(np.random.poisson(settings.SAMPLE_POISSON_MEAN)),
+                "year": int(np.random.choice(settings.SAMPLE_YEARS)),
+                "month": int(np.random.randint(
+                    settings.VALIDATION_MONTH_MIN, settings.VALIDATION_MONTH_MAX + 1
+                )),
             }
         )
 
     df = pd.DataFrame(records)
 
-    # Inyectar algunos valores problemáticos para ejercitar la limpieza
-    # (None en borough, mes inválido, valor negativo, "Unknown")
     df.loc[0, "borough"] = None
-    df.loc[1, "month"] = 13
+    df.loc[1, "month"] = settings.VALIDATION_MONTH_MAX + 1
     df.loc[2, "value"] = -5
     df.loc[3, "minor_category"] = "Unknown"
 
@@ -132,8 +129,10 @@ def ingest_data_from_bigquery() -> pd.DataFrame:
         from google.oauth2 import service_account
 
         credentials_path = os.environ.get(
-            "GOOGLE_APPLICATION_CREDENTIALS", "config/credentials.json"
+            "GOOGLE_APPLICATION_CREDENTIALS"
         )
+        if not credentials_path:
+            credentials_path = settings.GOOGLE_APPLICATION_CREDENTIALS_FALLBACK
 
         if not os.path.exists(credentials_path):
             raise FileNotFoundError(
@@ -142,14 +141,16 @@ def ingest_data_from_bigquery() -> pd.DataFrame:
             )
 
         credentials = service_account.Credentials.from_service_account_file(credentials_path)
-        client = bigquery.Client(project="london-crime-491323", credentials=credentials)
+        client = bigquery.Client(
+            project=settings.GCP_PROJECT_ID, credentials=credentials
+        )
 
         logging.info("Autenticado con Google Cloud")
 
-        query = """
+        query = f"""
             SELECT *
-            FROM `bigquery-public-data.london_crime.crime_by_lsoa`
-            LIMIT 100000;
+            FROM `{settings.BIGQUERY_TABLE}`
+            LIMIT {settings.BIGQUERY_ROW_LIMIT};
         """
 
         df = client.query(query).to_dataframe()
