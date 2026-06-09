@@ -34,6 +34,9 @@ import {
   Filler,
 } from "chart.js";
 
+import { COLORS, PIE_COLORS, CHART_DEFAULTS } from "./config/chartConfig";
+import { TEXT, UI_LIMITS } from "./config/text";
+
 ChartJS.register(
   CategoryScale, LinearScale, BarElement, ArcElement,
   PointElement, LineElement, Filler,
@@ -86,7 +89,7 @@ export default function App() {
   if (loading) {
     return (
       <Container sx={{ py: 4 }}>
-        <Typography variant="h4">Cargando...</Typography>
+        <Typography variant="h4">{TEXT.loading}</Typography>
       </Container>
     );
   }
@@ -94,7 +97,7 @@ export default function App() {
   if (!supabaseUrl || !supabaseKey) {
     return (
       <Container sx={{ py: 4 }}>
-        <Alert severity="error">Faltan variables de entorno</Alert>
+        <Alert severity="error">{TEXT.missingEnv}</Alert>
       </Container>
     );
   }
@@ -128,7 +131,7 @@ export default function App() {
   }, {});
   const trendChart = Object.entries(trendObj).sort().map(([date, crimenes]) => ({ date, crimenes }));
 
-  const topMinor = sortedEntries(groupBy(filtered, "minor_category")).slice(0, 10);
+  const topMinor = sortedEntries(groupBy(filtered, "minor_category")).slice(0, UI_LIMITS.TOP_SUBCATEGORIES);
 
   function groupByTwo(arr, key1, key2) {
     return arr.reduce((acc, row) => {
@@ -144,31 +147,31 @@ export default function App() {
   return (
     <Container maxWidth="xl" sx={{ py: 4, px: { xs: 1, sm: 2, md: 3 } }}>
       <Typography variant="h4" fontWeight="bold" gutterBottom align="center">
-        London Crime Dashboard
+        {TEXT.dashboardTitle}
       </Typography>
 
       <Grid container spacing={2} sx={{ mb: 4 }}>
         <Grid item xs={12} sm={6} md={3}>
           <Card><CardContent>
-            <Typography variant="body2" color="text.secondary">Total Crimenes</Typography>
+            <Typography variant="body2" color="text.secondary">{TEXT.totalCrimes}</Typography>
             <Typography variant="h4" fontWeight="bold">{totalCrimes.toLocaleString()}</Typography>
           </CardContent></Card>
         </Grid>
         <Grid item xs={12} sm={6} md={3}>
           <Card><CardContent>
-            <Typography variant="body2" color="text.secondary">Distrito Lider</Typography>
+            <Typography variant="body2" color="text.secondary">{TEXT.leadingDistrict}</Typography>
             <Typography variant="h4" fontWeight="bold">{topBorough ? topBorough[0] : "-"}</Typography>
           </CardContent></Card>
         </Grid>
         <Grid item xs={12} sm={6} md={3}>
           <Card><CardContent>
-            <Typography variant="body2" color="text.secondary">Categoria Principal</Typography>
+            <Typography variant="body2" color="text.secondary">{TEXT.mainCategory}</Typography>
             <Typography variant="h4" fontWeight="bold">{topCategory ? topCategory[0] : "-"}</Typography>
           </CardContent></Card>
         </Grid>
         <Grid item xs={12} sm={6} md={3}>
           <Card><CardContent>
-            <Typography variant="body2" color="text.secondary">Registros Filtrados</Typography>
+            <Typography variant="body2" color="text.secondary">{TEXT.filteredRecords}</Typography>
             <Typography variant="h4" fontWeight="bold">{filtered.length.toLocaleString()}</Typography>
           </CardContent></Card>
         </Grid>
@@ -176,32 +179,32 @@ export default function App() {
 
       <Paper sx={{ p: { xs: 1.5, sm: 2 }, mb: 4 }}>
         <Typography variant="subtitle1" fontWeight="bold" gutterBottom align="center">
-          Filtros
+          {TEXT.filters}
         </Typography>
         <Grid container spacing={2} justifyContent="center">
           <Grid item xs={12} sm={6} md={3}>
             <FormControl fullWidth size="small">
-              <InputLabel>Distrito</InputLabel>
-              <Select value={filterBorough} label="Distrito" onChange={(e) => setFilterBorough(e.target.value)}>
-                <MenuItem value="">Todos</MenuItem>
+              <InputLabel>{TEXT.district}</InputLabel>
+              <Select value={filterBorough} label={TEXT.district} onChange={(e) => setFilterBorough(e.target.value)}>
+                <MenuItem value="">{TEXT.all}</MenuItem>
                 {distinctBoroughs.map((b) => <MenuItem key={b} value={b}>{b}</MenuItem>)}
               </Select>
             </FormControl>
           </Grid>
           <Grid item xs={12} sm={6} md={3}>
             <FormControl fullWidth size="small">
-              <InputLabel>Categoria</InputLabel>
-              <Select value={filterCategory} label="Categoria" onChange={(e) => setFilterCategory(e.target.value)}>
-                <MenuItem value="">Todas</MenuItem>
+              <InputLabel>{TEXT.category}</InputLabel>
+              <Select value={filterCategory} label={TEXT.category} onChange={(e) => setFilterCategory(e.target.value)}>
+                <MenuItem value="">{TEXT.allF}</MenuItem>
                 {distinctCategories.map((c) => <MenuItem key={c} value={c}>{c}</MenuItem>)}
               </Select>
             </FormControl>
           </Grid>
           <Grid item xs={12} sm={6} md={3}>
             <FormControl fullWidth size="small">
-              <InputLabel>Anio</InputLabel>
-              <Select value={filterYear} label="Anio" onChange={(e) => setFilterYear(e.target.value)}>
-                <MenuItem value="">Todos</MenuItem>
+              <InputLabel>{TEXT.year}</InputLabel>
+              <Select value={filterYear} label={TEXT.year} onChange={(e) => setFilterYear(e.target.value)}>
+                <MenuItem value="">{TEXT.all}</MenuItem>
                 {distinctYears.map((y) => <MenuItem key={y} value={y}>{y}</MenuItem>)}
               </Select>
             </FormControl>
@@ -210,34 +213,34 @@ export default function App() {
       </Paper>
 
       <Paper sx={{ p: 2, mb: 4 }}>
-        <Typography variant="h6" gutterBottom>Crimenes por Distrito</Typography>
+        <Typography variant="h6" gutterBottom>{TEXT.crimesByDistrict}</Typography>
         <Bar
           data={{
             labels: boroughChart.map((r) => r.name),
             datasets: [{
-              label: "Crimenes",
+              label: TEXT.crimes,
               data: boroughChart.map((r) => r.crimenes),
-              backgroundColor: "#1976d2",
+              backgroundColor: COLORS.primary,
             }],
           }}
           options={{
             responsive: true,
             indexAxis: "x",
             plugins: { legend: { display: false } },
-            scales: { x: { ticks: { maxRotation: 45 } } },
+            scales: { x: { ticks: { maxRotation: CHART_DEFAULTS.maxRotation } } },
           }}
         />
       </Paper>
 
       <Paper sx={{ p: 2, mb: 4 }}>
-        <Typography variant="h6" gutterBottom>Proporcion por Categoria</Typography>
-        <Box sx={{ maxWidth: 500, mx: "auto" }}>
+        <Typography variant="h6" gutterBottom>{TEXT.proportionByCategory}</Typography>
+        <Box sx={{ maxWidth: CHART_DEFAULTS.barMaxWidth, mx: "auto" }}>
           <Pie
             data={{
               labels: pieData.map((r) => r.name),
               datasets: [{
                 data: pieData.map((r) => r.value),
-                backgroundColor: ["#1976d2", "#388e3c", "#f57c00", "#d32f2f", "#7b1fa2", "#00796b", "#c2185b", "#512da8", "#e64a19"],
+                backgroundColor: PIE_COLORS,
               }],
             }}
             options={{ responsive: true, plugins: { legend: { position: "bottom" } } }}
@@ -246,36 +249,36 @@ export default function App() {
       </Paper>
 
       <Paper sx={{ p: 2, mb: 4 }}>
-        <Typography variant="h6" gutterBottom>Tendencia Temporal</Typography>
+        <Typography variant="h6" gutterBottom>{TEXT.temporalTrend}</Typography>
         <Line
           data={{
             labels: trendChart.map((r) => r.date),
             datasets: [{
-              label: "Crimenes",
+              label: TEXT.crimes,
               data: trendChart.map((r) => r.crimenes),
-              borderColor: "#d32f2f",
+              borderColor: COLORS.danger,
               backgroundColor: "rgba(211,47,47,0.1)",
               fill: true,
-              tension: 0.3,
-              pointRadius: 2,
+              tension: CHART_DEFAULTS.tension,
+              pointRadius: CHART_DEFAULTS.pointRadius,
             }],
           }}
           options={{
             responsive: true,
-            scales: { x: { ticks: { maxRotation: 45, maxTicksLimit: 20 } } },
+            scales: { x: { ticks: { maxRotation: CHART_DEFAULTS.maxRotation, maxTicksLimit: CHART_DEFAULTS.maxTicksLimit } } },
           }}
         />
       </Paper>
 
       <Paper sx={{ p: 2, mb: 4 }}>
-        <Typography variant="h6" gutterBottom>Top 10 Subcategorias</Typography>
+        <Typography variant="h6" gutterBottom>{TEXT.topSubcategories}</Typography>
         <Bar
           data={{
             labels: topMinor.map((r) => r[0]),
             datasets: [{
-              label: "Crimenes",
+              label: TEXT.crimes,
               data: topMinor.map((r) => r[1]),
-              backgroundColor: "#388e3c",
+              backgroundColor: COLORS.secondary,
             }],
           }}
           options={{
@@ -287,12 +290,12 @@ export default function App() {
       </Paper>
 
       <Paper sx={{ p: 2, mb: 4 }}>
-        <Typography variant="h6" gutterBottom>Crimenes por Distrito y Anio</Typography>
+        <Typography variant="h6" gutterBottom>{TEXT.crimesByDistrictAndYear}</Typography>
         <Box sx={{ overflowX: "auto" }}>
           <Table size="small">
             <TableHead>
               <TableRow>
-                <TableCell sx={{ fontWeight: "bold" }}>Borough</TableCell>
+                <TableCell sx={{ fontWeight: "bold" }}>{TEXT.borough}</TableCell>
                 {years.map((y) => (
                   <TableCell key={y} sx={{ fontWeight: "bold" }} align="right">{y}</TableCell>
                 ))}
@@ -314,9 +317,9 @@ export default function App() {
         </Box>
       </Paper>
 
-      <Typography variant="h6" gutterBottom>Datos Detallados</Typography>
+      <Typography variant="h6" gutterBottom>{TEXT.detailedData}</Typography>
       {filtered.length === 0 ? (
-        <Alert severity="info">No hay datos con los filtros seleccionados.</Alert>
+        <Alert severity="info">{TEXT.noFilteredData}</Alert>
       ) : (
         <TableContainer component={Paper}>
           <Table size="small">
@@ -328,7 +331,7 @@ export default function App() {
               </TableRow>
             </TableHead>
             <TableBody>
-              {filtered.slice(0, 100).map((row, idx) => (
+              {filtered.slice(0, UI_LIMITS.MAX_DISPLAY_ROWS).map((row, idx) => (
                 <TableRow key={idx}>
                   {columns.map((col) => (
                     <TableCell key={col}>{row[col] != null ? String(row[col]) : "-"}</TableCell>
