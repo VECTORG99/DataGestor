@@ -1,6 +1,7 @@
+import json
 import os
 from pathlib import Path
-from typing import List
+from typing import Dict, List
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
@@ -102,6 +103,26 @@ SAMPLE_RANDOM_SEED = int(os.getenv("SAMPLE_RANDOM_SEED", "42"))
 SAMPLE_POISSON_MEAN = int(os.getenv("SAMPLE_POISSON_MEAN", "15"))
 SAMPLE_YEARS = [2016, 2017, 2018, 2019]
 SAMPLE_LSOA_RANGE = (1, 200)
+
+# ---------------------------------------------------------------------------
+# Sample data (cargado desde JSON)
+# ---------------------------------------------------------------------------
+SAMPLE_BOROUGHS_PATH = PROJECT_ROOT / "config" / "boroughs.json"
+SAMPLE_CATEGORIES_PATH = PROJECT_ROOT / "config" / "categories.json"
+
+
+def _load_json(path: Path) -> list | dict:
+    with open(path, encoding="utf-8") as f:
+        return json.load(f)
+
+
+def get_sample_boroughs() -> list:
+    return _load_json(SAMPLE_BOROUGHS_PATH)
+
+
+def get_sample_categories() -> Dict[str, list]:
+    return _load_json(SAMPLE_CATEGORIES_PATH)
+
 
 # ---------------------------------------------------------------------------
 # Variables de entorno requeridas

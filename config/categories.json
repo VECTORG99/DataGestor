@@ -1,0 +1,22 @@
+{
+  "Burglary": ["Burglary in a dwelling", "Burglary in other buildings"],
+  "Criminal Damage": ["Criminal damage to a vehicle", "Other criminal damage"],
+  "Drugs": ["Possession of cannabis", "Possession of class A drugs", "Other drug offences"],
+  "Robbery": ["Robbery of business property", "Robbery of personal property"],
+  "Sexual Offences": ["Rape", "Sexual assault", "Other sexual offences"],
+  "Theft and Handling": [
+    "Pickpocketing",
+    "Shoplifting",
+    "Theft from a vehicle",
+    "Theft of a vehicle",
+    "Other theft"
+  ],
+  "Violence Against the Person": [
+    "Assault with injury",
+    "Assault without injury",
+    "Harassment",
+    "Murder"
+  ],
+  "Fraud or Forgery": ["Fraud", "Forgery or use of false instrument"],
+  "Other Notifiable Offences": ["Other notifiable offences"]
+}
