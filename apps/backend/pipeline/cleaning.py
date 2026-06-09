@@ -300,22 +300,23 @@ def validate_data_quality(df: pd.DataFrame) -> bool:
         assert null_count == 0, f"Existen {null_count} valores nulos en el dataset limpio"
         logging.info("Sin valores nulos en columnas críticas")
 
-        assert (df["year"] >= settings.VALIDATION_MIN_YEAR).all(), \
-            f"Años menores a {settings.VALIDATION_MIN_YEAR} detectados"
-        assert (df["month"].between(
-            settings.VALIDATION_MONTH_MIN, settings.VALIDATION_MONTH_MAX
-        )).all(), "Meses fuera del rango válido detectados"
+        assert (
+            df["year"] >= settings.VALIDATION_MIN_YEAR
+        ).all(), f"Años menores a {settings.VALIDATION_MIN_YEAR} detectados"
+        assert (
+            df["month"].between(settings.VALIDATION_MONTH_MIN, settings.VALIDATION_MONTH_MAX)
+        ).all(), "Meses fuera del rango válido detectados"
         assert (df["total_crimes"] >= 0).all(), "Valores negativos en incidentes detectados"
         logging.info("Rangos de valores validados")
 
-        duplicates = df.duplicated(
-            subset=settings.GROUPBY_COLS
-        ).sum()
+        duplicates = df.duplicated(subset=settings.GROUPBY_COLS).sum()
         assert duplicates == 0, f"Se encontraron {duplicates} registros duplicados"
         logging.info("Sin registros duplicados")
 
-        assert df["date"].dtype in ("datetime64[ns]", "datetime64[us]"), \
-            "date debe estar en formato datetime"
+        assert df["date"].dtype in (
+            "datetime64[ns]",
+            "datetime64[us]",
+        ), "date debe estar en formato datetime"
         logging.info("Formato de fechas validado")
 
         logging.info(_SEP)

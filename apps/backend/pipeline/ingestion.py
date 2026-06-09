@@ -31,9 +31,11 @@ def get_sample_data(n_rows: int = None, inject_errors: bool = True) -> pd.DataFr
                 "minor_category": minor,
                 "value": int(np.random.poisson(settings.SAMPLE_POISSON_MEAN)),
                 "year": int(np.random.choice(settings.SAMPLE_YEARS)),
-                "month": int(np.random.randint(
-                    settings.VALIDATION_MONTH_MIN, settings.VALIDATION_MONTH_MAX + 1
-                )),
+                "month": int(
+                    np.random.randint(
+                        settings.VALIDATION_MONTH_MIN, settings.VALIDATION_MONTH_MAX + 1
+                    )
+                ),
             }
         )
 
@@ -69,9 +71,7 @@ def ingest_data_from_bigquery() -> pd.DataFrame:
             )
 
         credentials = service_account.Credentials.from_service_account_file(credentials_path)
-        client = bigquery.Client(
-            project=settings.GCP_PROJECT_ID, credentials=credentials
-        )
+        client = bigquery.Client(project=settings.GCP_PROJECT_ID, credentials=credentials)
 
         logging.info("Autenticado con Google Cloud")
 

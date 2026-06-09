@@ -19,9 +19,7 @@ def save_clean_data(df: pd.DataFrame, output_dir: Union[str, Path]) -> Dict[str,
     parquet_path = output_dir / f"{settings.SUPABASE_TABLE_NAME}.parquet"
 
     if not all(col in df.columns for col in settings.EXPECTED_COLUMNS_PROCESSED):
-        missing = [
-            col for col in settings.EXPECTED_COLUMNS_PROCESSED if col not in df.columns
-        ]
+        missing = [col for col in settings.EXPECTED_COLUMNS_PROCESSED if col not in df.columns]
         logging.error(f"Columnas faltantes en el DataFrame: {missing}")
         raise ValueError(f"DataFrame no contiene las columnas esperadas: {missing}")
 
@@ -51,9 +49,7 @@ def load_to_supabase(df: pd.DataFrame) -> bool:
         logging.info(f"Base de datos: {db_url.split('@')[-1].split('/')[0]}")
 
         if not all(col in df.columns for col in settings.EXPECTED_COLUMNS_PROCESSED):
-            missing = [
-                col for col in settings.EXPECTED_COLUMNS_PROCESSED if col not in df.columns
-            ]
+            missing = [col for col in settings.EXPECTED_COLUMNS_PROCESSED if col not in df.columns]
             logging.error(f"Columnas faltantes en el DataFrame: {missing}")
             raise ValueError(f"DataFrame no contiene las columnas esperadas: {missing}")
 
