@@ -29,7 +29,11 @@ GCP_PROJECT_ID = os.getenv("GCP_PROJECT_ID", "london-crime-491323")
 BIGQUERY_TABLE = os.getenv(
     "BIGQUERY_TABLE", "bigquery-public-data.london_crime.crime_by_lsoa"
 )
-BIGQUERY_ROW_LIMIT = int(os.getenv("BIGQUERY_ROW_LIMIT", "100000"))
+# Limite de filas a extraer de BigQuery.
+#   - 1_000_000 raw (~295 MB parquet) → ~44_886 agregadas (~3 MB CSV)
+#   - Supabase Free Tier: 500 MB total DB
+#   - Ajustar segun margen disponible. Ej: 2_000_000 ocupa ~6 MB (~1.2% del limite)
+BIGQUERY_ROW_LIMIT = int(os.getenv("BIGQUERY_ROW_LIMIT", "1000000"))
 GOOGLE_APPLICATION_CREDENTIALS_FALLBACK = os.getenv(
     "GOOGLE_APPLICATION_CREDENTIALS_FALLBACK",
     str(PROJECT_ROOT / "config" / "credentials.json"),
@@ -37,6 +41,9 @@ GOOGLE_APPLICATION_CREDENTIALS_FALLBACK = os.getenv(
 
 # ---------------------------------------------------------------------------
 # Supabase / Database
+#   Free Tier limits: 500 MB DB, 2 GB bandwidth, 5 GB row limit
+#   ~44k filas agregadas ≈ 8 MB → ~1.6% del limite de 500 MB
+#   A 237 bytes/fila, 500 MB darian para ~2.1M filas agregadas
 # ---------------------------------------------------------------------------
 SUPABASE_TABLE_NAME = os.getenv("SUPABASE_TABLE_NAME", "london_crime_aggregated")
 DB_IF_EXISTS = os.getenv("DB_IF_EXISTS", "replace")
