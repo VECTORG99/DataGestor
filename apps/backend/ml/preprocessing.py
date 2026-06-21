@@ -21,11 +21,6 @@ def create_classification_target(df: pd.DataFrame, method: str = "median") -> np
     return (df["total_crimes"] > threshold).astype(int).values
 
 
-def create_regression_target(df: pd.DataFrame) -> np.ndarray:
-    """Regression target: total_crimes."""
-    return df["total_crimes"].values
-
-
 def cyclical_encode_month(df: pd.DataFrame) -> pd.DataFrame:
     """Cyclical encoding for month (sin + cos)."""
     df = df.copy()
@@ -68,30 +63,20 @@ def prepare_features(df: pd.DataFrame) -> pd.DataFrame:
     return df[feature_cols]
 
 
-def split_data(X, y, test_size=0.3, random_state=42, stratify=None):
-    """Train/test split with optional stratification."""
-    return train_test_split(X, y, test_size=test_size, random_state=random_state, stratify=stratify)
-
-
 def preprocess_and_split(
     df: pd.DataFrame,
-    target_type: str = "regression",
     test_size: float = 0.3,
     random_state: int = 42,
 ):
-    """Full preprocessing pipeline: features -> preprocessor -> split."""
-    if target_type == "regression":
-        y = create_regression_target(df)
-        stratify = None
-    else:
-        y = create_classification_target(df)
-        stratify = y
-
+    """Full preprocessing pipeline: features -> preprocessor -> split (classification)."""
+    y = create_classification_target(df)
     X = prepare_features(df)
     categorical_cols = ["borough", "major_category", "minor_category"]
     numeric_cols = ["year", "month_sin", "month_cos"]
 
     preprocessor = build_preprocessor(categorical_cols, numeric_cols)
-    X_train, X_test, y_train, y_test = split_data(X, y, test_size, random_state, stratify)
+    X_train, X_test, y_train, y_test = train_test_split(
+        X, y, test_size=test_size, random_state=random_state, stratify=y
+    )
 
     return X_train, X_test, y_train, y_test, preprocessor

@@ -33,7 +33,7 @@ BIGQUERY_TABLE = os.getenv(
 #   - 1_000_000 raw (~295 MB parquet) → ~44_886 agregadas (~3 MB CSV)
 #   - Supabase Free Tier: 500 MB total DB
 #   - Ajustar segun margen disponible. Ej: 2_000_000 ocupa ~6 MB (~1.2% del limite)
-BIGQUERY_ROW_LIMIT = int(os.getenv("BIGQUERY_ROW_LIMIT", "1000000"))
+BIGQUERY_ROW_LIMIT = int(os.getenv("BIGQUERY_ROW_LIMIT", "3000000"))
 GOOGLE_APPLICATION_CREDENTIALS_FALLBACK = os.getenv(
     "GOOGLE_APPLICATION_CREDENTIALS_FALLBACK",
     str(PROJECT_ROOT / "config" / "credentials.json"),

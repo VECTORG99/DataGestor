@@ -4,4 +4,4 @@ per-file-ignores =
     apps/backend/cli/pipeline_dataops.py:E402
     apps/backend/cli/ml_pipeline.py:E402
     apps/backend/ml/classification.py:E402
-    apps/backend/ml/regression.py:E402
+

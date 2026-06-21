@@ -49,13 +49,6 @@ class TestPreprocessing:
         ratio = y.mean()
         assert 0.3 <= ratio <= 0.7
 
-    def test_create_regression_target(self, sample_df):
-        from apps.backend.ml.preprocessing import create_regression_target
-
-        y = create_regression_target(sample_df)
-        assert len(y) == 50
-        assert np.issubdtype(y.dtype, np.floating)
-
     def test_cyclical_encode_month(self, sample_df):
         from apps.backend.ml.preprocessing import cyclical_encode_month
 
@@ -74,68 +67,14 @@ class TestPreprocessing:
         assert X_t.shape[0] == 50
         assert X_t.shape[1] > 3
 
-    def test_preprocess_and_split_regression(self, sample_df):
-        from apps.backend.ml.preprocessing import preprocess_and_split
-
-        X_train, X_test, y_train, y_test, preprocessor = preprocess_and_split(
-            sample_df, "regression", test_size=0.3, random_state=42
-        )
-        assert len(X_train) > len(X_test)
-        assert len(y_train) + len(y_test) == 50
-
     def test_preprocess_and_split_classification(self, sample_df):
         from apps.backend.ml.preprocessing import preprocess_and_split
 
         X_train, X_test, y_train, y_test, preprocessor = preprocess_and_split(
-            sample_df, "classification", test_size=0.3, random_state=42
+            sample_df, test_size=0.3, random_state=42
         )
         assert set(np.unique(y_train)).issubset({0, 1})
         assert set(np.unique(y_test)).issubset({0, 1})
-
-
-class TestRegression:
-    def test_train_linear_regression(self, sample_df):
-        from apps.backend.ml.preprocessing import (
-            build_preprocessor,
-            create_regression_target,
-            prepare_features,
-        )
-        from apps.backend.ml.regression import train_linear_regression
-
-        X = prepare_features(sample_df)
-        y = create_regression_target(sample_df)
-        preprocessor = build_preprocessor(
-            ["borough", "major_category", "minor_category"],
-            ["year", "month_sin", "month_cos"],
-        )
-        X_t = preprocessor.fit_transform(X)
-        model = train_linear_regression(X_t[:40], y[:40])
-        assert hasattr(model, "coef_")
-        assert hasattr(model, "intercept_")
-
-    def test_evaluate_regression_returns_metrics(self, sample_df):
-        from apps.backend.ml.preprocessing import (
-            build_preprocessor,
-            create_regression_target,
-            prepare_features,
-        )
-        from apps.backend.ml.regression import (
-            evaluate_regression,
-            train_linear_regression,
-        )
-
-        X = prepare_features(sample_df)
-        y = create_regression_target(sample_df)
-        preprocessor = build_preprocessor(
-            ["borough", "major_category", "minor_category"],
-            ["year", "month_sin", "month_cos"],
-        )
-        X_t = preprocessor.fit_transform(X)
-        model = train_linear_regression(X_t[:40], y[:40])
-        metrics = evaluate_regression(model, X_t[40:], y[40:])
-        for key in ["r2_score", "rmse", "mae"]:
-            assert key in metrics
-        assert metrics["rmse"] > 0
 
 
 class TestClassification:
@@ -157,24 +96,6 @@ class TestClassification:
         model = train_logistic_regression(X_t[:40], y[:40])
         assert hasattr(model, "coef_")
         assert hasattr(model, "predict_proba")
-
-    def test_train_random_forest(self, sample_df):
-        from apps.backend.ml.preprocessing import (
-            build_preprocessor,
-            create_classification_target,
-            prepare_features,
-        )
-        from apps.backend.ml.classification import train_random_forest
-
-        X = prepare_features(sample_df)
-        y = create_classification_target(sample_df)
-        preprocessor = build_preprocessor(
-            ["borough", "major_category", "minor_category"],
-            ["year", "month_sin", "month_cos"],
-        )
-        X_t = preprocessor.fit_transform(X)
-        model = train_random_forest(X_t[:40], y[:40], n_estimators=10)
-        assert hasattr(model, "feature_importances_")
 
     def test_evaluate_classification_returns_all_metrics(self, sample_df):
         from apps.backend.ml.preprocessing import (

@@ -1,4 +1,4 @@
-"""Classification module: Logistic Regression + Random Forest training and evaluation."""
+"""Classification module: Logistic Regression training and evaluation."""
 
 import logging
 import os
@@ -8,8 +8,6 @@ import matplotlib
 
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
-import numpy as np
-from sklearn.ensemble import RandomForestClassifier
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import (
     accuracy_score,
@@ -32,16 +30,8 @@ def train_logistic_regression(X_train, y_train, max_iter=1000):
     return model
 
 
-def train_random_forest(X_train, y_train, n_estimators=100):
-    """Train Random Forest classifier."""
-    model = RandomForestClassifier(n_estimators=n_estimators, random_state=42)
-    model.fit(X_train, y_train)
-    logging.info(f"[ML] Random Forest entrenado ({n_estimators} arboles).")
-    return model
-
-
 def evaluate_classification(model, X_test, y_test, model_name: str = "model") -> dict:
-    """Evaluate classifier. Returns all metrics required by rubric."""
+    """Evaluate classifier. Returns all metrics."""
     y_pred = model.predict(X_test)
     y_proba = model.predict_proba(X_test)[:, 1] if hasattr(model, "predict_proba") else None
 
@@ -68,12 +58,6 @@ def evaluate_classification(model, X_test, y_test, model_name: str = "model") ->
         roc_auc = auc(fpr, tpr)
         metrics["roc_auc"] = round(roc_auc, 4)
         metrics["gini"] = round(2 * roc_auc - 1, 4)
-        # Store sampled curve for report (max 50 points)
-        step = max(1, len(fpr) // 50)
-        metrics["roc_curve"] = {
-            "fpr": fpr[::step].tolist(),
-            "tpr": tpr[::step].tolist(),
-        }
 
     return metrics
 
@@ -108,32 +92,6 @@ def plot_roc_curve(
     plt.savefig(save_path, dpi=100, bbox_inches="tight")
     plt.close()
     logging.info(f"[ML] Curva ROC guardada en {save_path}")
-
-
-def plot_feature_importance(
-    model,
-    feature_names,
-    save_path: str = "/app/data/metrics/feature_importance.png",
-):
-    """Save feature importance plot (Random Forest)."""
-    if not hasattr(model, "feature_importances_"):
-        logging.warning("[ML] El modelo no tiene feature_importances_")
-        return
-
-    importances = model.feature_importances_
-    indices = np.argsort(importances)[::-1][:15]
-
-    fig, ax = plt.subplots(figsize=(10, 6))
-    ax.bar(range(len(indices)), importances[indices])
-    ax.set_xticks(range(len(indices)))
-    ax.set_xticklabels([feature_names[i] for i in indices], rotation=45, ha="right")
-    ax.set_title("Top 15 Feature Importances")
-    ax.set_xlabel("Feature")
-    ax.set_ylabel("Importancia")
-    plt.tight_layout()
-    plt.savefig(save_path, dpi=100, bbox_inches="tight")
-    plt.close()
-    logging.info(f"[ML] Importancia de features guardada en {save_path}")
 
 
 def save_classification_model(model, path: str):

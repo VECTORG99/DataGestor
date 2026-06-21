@@ -34,9 +34,19 @@ import {
   Filler,
 } from "chart.js";
 
-import { COLORS, PIE_COLORS, CHART_DEFAULTS } from "./config/chartConfig";
-import { TEXT, UI_LIMITS } from "./config/text";
-import { DB_CONFIG } from "./config/database";
+const COLORS = { primary: "#1976d2", secondary: "#388e3c", accent: "#f57c00", danger: "#d32f2f", purple: "#7b1fa2", teal: "#00796b", pink: "#c2185b", deepPurple: "#512da8", orange: "#e64a19" };
+const PIE_COLORS = [COLORS.primary, COLORS.secondary, COLORS.accent, COLORS.danger, COLORS.purple, COLORS.teal, COLORS.pink, COLORS.deepPurple, COLORS.orange];
+const CHART_DEFAULTS = { maxRotation: 45, maxTicksLimit: 20, tension: 0.3, pointRadius: 2, barMaxWidth: 500 };
+const TEXT = {
+  loading: "Cargando...", missingEnv: "Faltan variables de entorno", dashboardTitle: "London Crime Dashboard",
+  totalCrimes: "Total Crímenes", leadingDistrict: "Distrito Líder", mainCategory: "Categoría Principal",
+  filteredRecords: "Registros Filtrados", filters: "Filtros", district: "Distrito", category: "Categoría",
+  year: "Año", all: "Todos", allF: "Todas", crimes: "Crímenes", borough: "Borough",
+  crimesByDistrict: "Crímenes por Distrito", proportionByCategory: "Proporción por Categoría",
+  temporalTrend: "Tendencia Temporal", topSubcategories: "Top 10 Subcategorías",
+  crimesByDistrictAndYear: "Crímenes por Distrito y Año",
+  detailedData: "Datos Detallados", noFilteredData: "No hay datos con los filtros seleccionados.",
+};
 
 ChartJS.register(
   CategoryScale, LinearScale, BarElement, ArcElement,
@@ -44,6 +54,8 @@ ChartJS.register(
   Title, Tooltip, Legend
 );
 
+const TABLE_NAME = import.meta.env.VITE_SUPABASE_TABLE_NAME || "london_crime_aggregated";
+const FETCH_LIMIT = 5000;
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 const supabase = createClient(supabaseUrl || "", supabaseKey || "");
@@ -75,8 +87,9 @@ export default function App() {
         return;
       }
       const { data, error } = await supabase
-        .from(DB_CONFIG.tableName)
-        .select("*");
+        .from(TABLE_NAME)
+        .select("*")
+        .range(0, FETCH_LIMIT - 1);
       if (error) {
         setRows([]);
       } else {
@@ -132,7 +145,7 @@ export default function App() {
   }, {});
   const trendChart = Object.entries(trendObj).sort().map(([date, crimenes]) => ({ date, crimenes }));
 
-  const topMinor = sortedEntries(groupBy(filtered, "minor_category")).slice(0, UI_LIMITS.TOP_SUBCATEGORIES);
+  const topMinor = sortedEntries(groupBy(filtered, "minor_category")).slice(0, 10);
 
   function groupByTwo(arr, key1, key2) {
     return arr.reduce((acc, row) => {
@@ -332,7 +345,7 @@ export default function App() {
               </TableRow>
             </TableHead>
             <TableBody>
-              {filtered.slice(0, UI_LIMITS.MAX_DISPLAY_ROWS).map((row, idx) => (
+              {filtered.slice(0, 100).map((row, idx) => (
                 <TableRow key={idx}>
                   {columns.map((col) => (
                     <TableCell key={col}>{row[col] != null ? String(row[col]) : "-"}</TableCell>
