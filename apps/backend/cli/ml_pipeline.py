@@ -12,6 +12,8 @@ import os
 import sys
 from pathlib import Path
 
+import joblib
+
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
@@ -68,6 +70,9 @@ def main():
     )
     plot_roc_curve(y_test, y_proba, save_path=str(METRICS_DIR / "roc_curve.png"))
     save_classification_model(logreg, path=str(MODELS_DIR / "logistic_regression.joblib"))
+    # Save fitted preprocessor for inference API
+    joblib.dump(pre, MODELS_DIR / "preprocessor.joblib")
+    logging.info(f"[ML] Preprocesador guardado en {MODELS_DIR / 'preprocessor.joblib'}")
 
     # ---- Save metrics ----
     with open(METRICS_DIR / "ml_metrics.json", "w") as f:

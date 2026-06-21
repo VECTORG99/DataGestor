@@ -100,6 +100,16 @@ export default function App() {
   const [logsOpen, setLogsOpen] = useState(false);
   const [exporting, setExporting] = useState(false);
 
+  // Predictor state
+  const [predBorough, setPredBorough] = useState("");
+  const [predCategory, setPredCategory] = useState("");
+  const [predSubcategory, setPredSubcategory] = useState("");
+  const [predYear, setPredYear] = useState(2016);
+  const [predMonth, setPredMonth] = useState(1);
+  const [predResult, setPredResult] = useState(null);
+  const [predLoading, setPredLoading] = useState(false);
+  const [predError, setPredError] = useState(null);
+
   useEffect(() => {
     async function fetchRows() {
       setLoading(true);
@@ -809,6 +819,135 @@ export default function App() {
           <Alert severity="info">Ejecuta el pipeline de ML para ver métricas de clasificación.</Alert>
         )}
       </Box>
+
+      {/* Interactive Predictor */}
+      <Paper sx={{ p: 2, mb: 4 }}>
+        <Typography variant="h6" gutterBottom fontWeight="bold">
+          Predictor Interactivo — ¿Alta o Baja Criminalidad?
+        </Typography>
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+          Selecciona distrito, categoría, mes y año para predecir si la incidencia será alta o baja.
+        </Typography>
+
+        <Grid container spacing={2} alignItems="flex-end">
+          <Grid item xs={6} sm={4} md={2}>
+            <FormControl fullWidth size="small">
+              <InputLabel>Distrito</InputLabel>
+              <Select value={predBorough} label="Distrito" onChange={(e) => { setPredBorough(e.target.value); setPredResult(null); }}>
+                <MenuItem value="">—</MenuItem>
+                {distinctBoroughs.map((b) => <MenuItem key={b} value={b}>{b}</MenuItem>)}
+              </Select>
+            </FormControl>
+          </Grid>
+          <Grid item xs={6} sm={4} md={2}>
+            <FormControl fullWidth size="small">
+              <InputLabel>Categoría</InputLabel>
+              <Select value={predCategory} label="Categoría" onChange={(e) => { setPredCategory(e.target.value); setPredResult(null); }}>
+                <MenuItem value="">—</MenuItem>
+                {distinctCategories.map((c) => <MenuItem key={c} value={c}>{c}</MenuItem>)}
+              </Select>
+            </FormControl>
+          </Grid>
+          <Grid item xs={6} sm={4} md={2}>
+            <FormControl fullWidth size="small">
+              <InputLabel>Subcategoría</InputLabel>
+              <Select value={predSubcategory} label="Subcategoría" onChange={(e) => { setPredSubcategory(e.target.value); setPredResult(null); }}>
+                <MenuItem value="">—</MenuItem>
+                {[...new Set(rows.filter(r => !predCategory || r.major_category === predCategory).map(r => r.minor_category))].sort().map((s) => <MenuItem key={s} value={s}>{s}</MenuItem>)}
+              </Select>
+            </FormControl>
+          </Grid>
+          <Grid item xs={4} sm={3} md={1.5}>
+            <FormControl fullWidth size="small">
+              <InputLabel>Año</InputLabel>
+              <Select value={predYear} label="Año" onChange={(e) => { setPredYear(Number(e.target.value)); setPredResult(null); }}>
+                {distinctYears.map((y) => <MenuItem key={y} value={y}>{y}</MenuItem>)}
+              </Select>
+            </FormControl>
+          </Grid>
+          <Grid item xs={4} sm={3} md={1.5}>
+            <FormControl fullWidth size="small">
+              <InputLabel>Mes</InputLabel>
+              <Select value={predMonth} label="Mes" onChange={(e) => { setPredMonth(Number(e.target.value)); setPredResult(null); }}>
+                {Array.from({ length: 12 }, (_, i) => (
+                  <MenuItem key={i + 1} value={i + 1}>{String(i + 1).padStart(2, "0")}</MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          </Grid>
+          <Grid item xs={4} sm={3} md={1}>
+            <Button
+              variant="contained"
+              fullWidth
+              disabled={!predBorough || !predCategory || !predSubcategory || predLoading}
+              onClick={async () => {
+                setPredLoading(true);
+                setPredError(null);
+                setPredResult(null);
+                try {
+                  const resp = await fetch("http://localhost:8000/predict", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                      borough: predBorough,
+                      major_category: predCategory,
+                      minor_category: predSubcategory,
+                      year: predYear,
+                      month: predMonth,
+                    }),
+                  });
+                  if (!resp.ok) throw new Error(await resp.text());
+                  setPredResult(await resp.json());
+                } catch (e) {
+                  setPredError(e.message);
+                } finally {
+                  setPredLoading(false);
+                }
+              }}
+            >
+              {predLoading ? <CircularProgress size={18} /> : "Predecir"}
+            </Button>
+          </Grid>
+        </Grid>
+
+        {/* Prediction result */}
+        {predResult && (
+          <Box sx={{ mt: 2, p: 2, bgcolor: predResult.prediction === 1 ? "#ffebee" : "#e8f5e9", borderRadius: 1 }}>
+            <Typography variant="h5" fontWeight="bold" sx={{ color: predResult.prediction === 1 ? COLORS.danger : COLORS.secondary }}>
+              {predResult.prediction === 1 ? "ALTA INCIDENCIA" : "BAJA INCIDENCIA"}
+            </Typography>
+            <Box sx={{ display: "flex", gap: 3, mt: 1, flexWrap: "wrap" }}>
+              <Box>
+                <Typography variant="caption" color="text.secondary">Prob. Alta</Typography>
+                <Typography variant="h6" fontWeight="bold" sx={{ color: COLORS.danger }}>{(predResult.probability_high * 100).toFixed(1)}%</Typography>
+              </Box>
+              <Box>
+                <Typography variant="caption" color="text.secondary">Prob. Baja</Typography>
+                <Typography variant="h6" fontWeight="bold" sx={{ color: COLORS.secondary }}>{(predResult.probability_low * 100).toFixed(1)}%</Typography>
+              </Box>
+              <Box>
+                <Typography variant="caption" color="text.secondary">Features</Typography>
+                <Typography variant="h6" fontWeight="bold">{predResult.features_used}</Typography>
+              </Box>
+            </Box>
+            {/* Probability bar */}
+            <Box sx={{ mt: 1, width: "100%", bgcolor: "#e0e0e0", borderRadius: 1, height: 20, position: "relative", overflow: "hidden" }}>
+              <Box sx={{ width: `${(predResult.probability_high * 100).toFixed(1)}%`, bgcolor: COLORS.danger, height: "100%", transition: "width 0.5s" }} />
+              <Typography variant="caption" sx={{ position: "absolute", top: 2, left: 8, fontWeight: "bold", color: "#333" }}>
+                Baja: {(predResult.probability_low * 100).toFixed(0)}%
+              </Typography>
+              <Typography variant="caption" sx={{ position: "absolute", top: 2, right: 8, fontWeight: "bold", color: "#fff" }}>
+                Alta: {(predResult.probability_high * 100).toFixed(0)}%
+              </Typography>
+            </Box>
+          </Box>
+        )}
+        {predError && (
+          <Alert severity="error" sx={{ mt: 2 }}>
+            Error: {predError}
+          </Alert>
+        )}
+      </Paper>
     </Container>
   );
 }
