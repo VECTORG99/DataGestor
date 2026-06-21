@@ -89,6 +89,7 @@ export default function App() {
   const [filterCategory, setFilterCategory] = useState("");
   const [filterYear, setFilterYear] = useState("");
   const [mlMetrics, setMlMetrics] = useState(null);
+  const [pipelineStats, setPipelineStats] = useState(null);
   const [exporting, setExporting] = useState(false);
 
   useEffect(() => {
@@ -154,6 +155,13 @@ export default function App() {
     fetch("/ml/ml_metrics.json")
       .then((r) => r.json())
       .then(setMlMetrics)
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    fetch("/pipeline_stats.json")
+      .then((r) => r.json())
+      .then(setPipelineStats)
       .catch(() => {});
   }, []);
 
@@ -308,26 +316,97 @@ export default function App() {
         {TEXT.dashboardTitle}
       </Typography>
 
+      {/* Pipeline Overview — 4 cards explaining data flow */}
       <Grid container spacing={2} sx={{ mb: 4 }}>
-        <Grid item xs={12} sm={6} md={4}>
-          <Card><CardContent>
-            <Typography variant="body2" color="text.secondary">{TEXT.cleanRecords}</Typography>
-            <Typography variant="h4" fontWeight="bold">{rows.length.toLocaleString()}</Typography>
-            <Typography variant="caption" color="text.secondary">Post-ETL, pre-agregados por distrito/categoría/mes</Typography>
-          </CardContent></Card>
+        {/* Stage 1: Raw BigQuery records */}
+        <Grid item xs={12} sm={6} md={3}>
+          <Card sx={{ borderTop: 3, borderColor: "#9e9e9e" }}>
+            <CardContent sx={{ py: 1.5 }}>
+              <Typography variant="caption" color="text.secondary" sx={{ textTransform: "uppercase", letterSpacing: 1 }}>Fase 1 — BigQuery</Typography>
+              <Typography variant="body2" color="text.secondary">Datos Crudos (LSOA)</Typography>
+              <Typography variant="h4" fontWeight="bold">~3,000,000</Typography>
+              <Typography variant="caption" color="text.secondary">Registros a nivel LSOA (~1500 hab.) del dataset público de Londres</Typography>
+            </CardContent>
+          </Card>
         </Grid>
+
+        {/* Stage 2: Cleaning — show filtering steps */}
+        <Grid item xs={12} sm={6} md={3}>
+          <Card sx={{ borderTop: 3, borderColor: COLORS.accent }}>
+            <CardContent sx={{ py: 1.5 }}>
+              <Typography variant="caption" color="text.secondary" sx={{ textTransform: "uppercase", letterSpacing: 1 }}>Fase 2 — Limpieza</Typography>
+              <Typography variant="body2" color="text.secondary">Registros Eliminados</Typography>
+              <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5, mt: 0.5 }}>
+                {[
+                  { label: "Nulos", color: COLORS.danger },
+                  { label: "Meses inválidos", color: COLORS.accent },
+                  { label: "Años fuera de rango", color: COLORS.accent },
+                  { label: "Valores negativos", color: COLORS.danger },
+                  { label: "Duplicados", color: COLORS.accent },
+                  { label: "Normalización", color: COLORS.primary },
+                ].map((tag) => (
+                  <Box key={tag.label} sx={{ bgcolor: tag.color + "18", color: tag.color, borderRadius: 0.5, px: 0.8, py: 0.1, fontSize: 10, fontWeight: "medium", display: "inline-block" }}>
+                    {tag.label}
+                  </Box>
+                ))}
+              </Box>
+              <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 0.5 }}>
+                Se eliminan registros con datos inválidos antes de agregar
+              </Typography>
+            </CardContent>
+          </Card>
+        </Grid>
+
+        {/* Stage 3: Aggregation result */}
+        <Grid item xs={12} sm={6} md={3}>
+          <Card sx={{ borderTop: 3, borderColor: COLORS.secondary }}>
+            <CardContent sx={{ py: 1.5 }}>
+              <Typography variant="caption" color="text.secondary" sx={{ textTransform: "uppercase", letterSpacing: 1 }}>Fase 3 — Agregación</Typography>
+              <Typography variant="body2" color="text.secondary">Registros Limpios</Typography>
+              <Typography variant="h4" fontWeight="bold">{rows.length.toLocaleString()}</Typography>
+              <Typography variant="caption" color="text.secondary">
+                Agrupados por (borough, major_category, minor_category, year, month). Cada fila = suma de crímenes en ese grupo.
+              </Typography>
+            </CardContent>
+          </Card>
+        </Grid>
+
+        {/* Stage 4: Total Crimes — the actual crime count */}
+        <Grid item xs={12} sm={6} md={3}>
+          <Card sx={{ borderTop: 3, borderColor: COLORS.danger }}>
+            <CardContent sx={{ py: 1.5 }}>
+              <Typography variant="caption" color="text.secondary" sx={{ textTransform: "uppercase", letterSpacing: 1 }}>Total Reales</Typography>
+              <Typography variant="body2" color="text.secondary">Crímenes (Suma)</Typography>
+              <Typography variant="h4" fontWeight="bold" sx={{ color: COLORS.danger }}>{totalCrimes.toLocaleString()}</Typography>
+              <Typography variant="caption" color="text.secondary">
+                Suma de total_crimes en TODAS las filas. ¿Por qué no 3M? Los ~3M son filas LSOA (cada una con ~0.5 crímenes promedio), no crímenes individuales. 1.4M es la suma real.
+              </Typography>
+            </CardContent>
+          </Card>
+        </Grid>
+      </Grid>
+
+      {/* Top-level snapshot cards */}
+      <Grid container spacing={2} sx={{ mb: 4 }}>
         <Grid item xs={12} sm={6} md={4}>
           <Card><CardContent>
             <Typography variant="body2" color="text.secondary">{TEXT.leadingDistrict}</Typography>
             <Typography variant="h4" fontWeight="bold">{topBorough ? topBorough[0] : "-"}</Typography>
-            <Typography variant="caption" color="text.secondary">{topBorough ? topBorough[1].toLocaleString() + " crímenes" : ""}</Typography>
+            <Typography variant="caption" color="text.secondary">{topBorough ? topBorough[1].toLocaleString() + " crímenes (" + (topBorough[1]/totalCrimes*100).toFixed(1) + "% del total)" : ""}</Typography>
           </CardContent></Card>
         </Grid>
         <Grid item xs={12} sm={6} md={4}>
           <Card><CardContent>
             <Typography variant="body2" color="text.secondary">{TEXT.mainCategory}</Typography>
             <Typography variant="h4" fontWeight="bold">{topCategory ? topCategory[0] : "-"}</Typography>
-            <Typography variant="caption" color="text.secondary">{topCategory ? topCategory[1].toLocaleString() + " crímenes" : ""}</Typography>
+            <Typography variant="caption" color="text.secondary">{topCategory ? topCategory[1].toLocaleString() + " crímenes (" + (topCategory[1]/totalCrimes*100).toFixed(1) + "% del total)" : ""}</Typography>
+          </CardContent></Card>
+        </Grid>
+        <Grid item xs={12} sm={6} md={4}>
+          <Card><CardContent>
+            <Typography variant="body2" color="text.secondary">Años Cubiertos</Typography>
+            <Typography variant="h4" fontWeight="bold">{yearRange}</Typography>
+            <Typography variant="caption" color="text.secondary">{distinctBoroughs.length} distritos · {distinctCategories.length} categorías</Typography>
           </CardContent></Card>
         </Grid>
       </Grid>

@@ -1,0 +1,40 @@
+{
+  "dataset": "bigquery-public-data.london_crime.crime_by_lsoa",
+  "stages": [
+    {
+      "stage": "crudos",
+      "label": "Datos Crudos (BigQuery)",
+      "description": "Registros a nivel LSOA (~1500 hab. cada uno) del dataset público de Londres",
+      "records": "~3,000,000",
+      "note": "Cada fila representa un crimen-reportado por LSOA, mes, año y categoría"
+    },
+    {
+      "stage": "limpieza",
+      "label": "Limpieza Aplicada",
+      "description": "Se eliminan registros con:",
+      "removed_reasons": [
+        "Valores nulos en columnas críticas (borough, category, value)",
+        "Meses inválidos (fuera de rango 1-12)",
+        "Años fuera del período permitido",
+        "Valores negativos en total de crímenes",
+        "Duplicados exactos",
+        "Normalización de textos (espacios, mayúsculas, correcciones ortográficas)"
+      ]
+    },
+    {
+      "stage": "agregacion",
+      "label": "Agregación",
+      "description": "Los registros LSOA se agrupan por (borough, major_category, minor_category, year, month) y se suman los valores",
+      "records_out": "77,524",
+      "note": "Cada fila ya no es un LSOA individual, sino la suma total de crímenes para ese grupo"
+    },
+    {
+      "stage": "total_crimenes",
+      "label": "Total Crímenes (Suma)",
+      "description": "Suma de total_crimes en TODAS las filas agregadas",
+      "records": "1,427,544",
+      "note": "Este es el número real de incidentes criminales en Londres (2008-2016)",
+      "why_not_3m": "Los ~3M del dataset original son FILAS LSOA, no crímenes individuales. Cada LSOA reporta un valor (ej: 2 robos) y al agregar se suman. 1.4M es la suma real de crímenes."
+    }
+  ]
+}
