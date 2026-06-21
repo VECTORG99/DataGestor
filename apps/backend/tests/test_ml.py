@@ -13,24 +13,27 @@ def sample_df():
     """Mini dataset for tests."""
     np.random.seed(42)
     n = 50
-    return pd.DataFrame({
-        "borough": np.random.choice(["Camden", "Westminster", "Brent"], n),
-        "major_category": np.random.choice(
-            ["Violence Against the Person", "Theft and Handling", "Burglary"], n
-        ),
-        "minor_category": np.random.choice(
-            ["Assault with injury", "Shoplifting", "Burglary in a dwelling"], n
-        ),
-        "year": np.random.choice([2016, 2017, 2018, 2019], n),
-        "month": np.random.randint(1, 13, n),
-        "total_crimes": np.random.poisson(15, n).astype(float),
-        "date": pd.date_range("2016-01-01", periods=n, freq="ME"),
-    })
+    return pd.DataFrame(
+        {
+            "borough": np.random.choice(["Camden", "Westminster", "Brent"], n),
+            "major_category": np.random.choice(
+                ["Violence Against the Person", "Theft and Handling", "Burglary"], n
+            ),
+            "minor_category": np.random.choice(
+                ["Assault with injury", "Shoplifting", "Burglary in a dwelling"], n
+            ),
+            "year": np.random.choice([2016, 2017, 2018, 2019], n),
+            "month": np.random.randint(1, 13, n),
+            "total_crimes": np.random.poisson(15, n).astype(float),
+            "date": pd.date_range("2016-01-01", periods=n, freq="ME"),
+        }
+    )
 
 
 class TestPreprocessing:
     def test_load_clean_data_csv(self, tmp_path, sample_df):
         from apps.backend.ml.preprocessing import load_clean_data
+
         path = tmp_path / "test.csv"
         sample_df.to_csv(path, index=False)
         df = load_clean_data(str(path))
@@ -39,6 +42,7 @@ class TestPreprocessing:
 
     def test_create_classification_target(self, sample_df):
         from apps.backend.ml.preprocessing import create_classification_target
+
         y = create_classification_target(sample_df, method="median")
         assert y.dtype == np.int64 or y.dtype == int
         assert set(np.unique(y)).issubset({0, 1})
@@ -47,12 +51,14 @@ class TestPreprocessing:
 
     def test_create_regression_target(self, sample_df):
         from apps.backend.ml.preprocessing import create_regression_target
+
         y = create_regression_target(sample_df)
         assert len(y) == 50
         assert np.issubdtype(y.dtype, np.floating)
 
     def test_cyclical_encode_month(self, sample_df):
         from apps.backend.ml.preprocessing import cyclical_encode_month
+
         df = cyclical_encode_month(sample_df.copy())
         assert "month_sin" in df.columns
         assert "month_cos" in df.columns
@@ -61,6 +67,7 @@ class TestPreprocessing:
 
     def test_build_preprocessor(self, sample_df):
         from apps.backend.ml.preprocessing import build_preprocessor
+
         preprocessor = build_preprocessor(["borough", "major_category"], ["year"])
         X = sample_df[["borough", "major_category", "year"]]
         X_t = preprocessor.fit_transform(X)
@@ -69,6 +76,7 @@ class TestPreprocessing:
 
     def test_preprocess_and_split_regression(self, sample_df):
         from apps.backend.ml.preprocessing import preprocess_and_split
+
         X_train, X_test, y_train, y_test, preprocessor = preprocess_and_split(
             sample_df, "regression", test_size=0.3, random_state=42
         )
@@ -77,6 +85,7 @@ class TestPreprocessing:
 
     def test_preprocess_and_split_classification(self, sample_df):
         from apps.backend.ml.preprocessing import preprocess_and_split
+
         X_train, X_test, y_train, y_test, preprocessor = preprocess_and_split(
             sample_df, "classification", test_size=0.3, random_state=42
         )
@@ -95,6 +104,7 @@ class TestRegression:
             evaluate_regression,
             train_linear_regression,
         )
+
         X = prepare_features(sample_df)
         y = create_regression_target(sample_df)
         preprocessor = build_preprocessor(
@@ -116,6 +126,7 @@ class TestRegression:
             evaluate_regression,
             train_linear_regression,
         )
+
         X = prepare_features(sample_df)
         y = create_regression_target(sample_df)
         preprocessor = build_preprocessor(
@@ -138,6 +149,7 @@ class TestClassification:
             prepare_features,
         )
         from apps.backend.ml.classification import train_logistic_regression
+
         X = prepare_features(sample_df)
         y = create_classification_target(sample_df)
         preprocessor = build_preprocessor(
@@ -156,6 +168,7 @@ class TestClassification:
             prepare_features,
         )
         from apps.backend.ml.classification import train_random_forest
+
         X = prepare_features(sample_df)
         y = create_classification_target(sample_df)
         preprocessor = build_preprocessor(
@@ -176,6 +189,7 @@ class TestClassification:
             evaluate_classification,
             train_logistic_regression,
         )
+
         X = prepare_features(sample_df)
         y = create_classification_target(sample_df)
         preprocessor = build_preprocessor(

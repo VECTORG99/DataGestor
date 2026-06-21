@@ -5,6 +5,7 @@ import os
 
 import joblib
 import matplotlib
+
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
@@ -33,26 +34,16 @@ def train_logistic_regression(X_train, y_train, max_iter=1000):
 
 def train_random_forest(X_train, y_train, n_estimators=100):
     """Train Random Forest classifier."""
-    model = RandomForestClassifier(
-        n_estimators=n_estimators, random_state=42
-    )
+    model = RandomForestClassifier(n_estimators=n_estimators, random_state=42)
     model.fit(X_train, y_train)
-    logging.info(
-        f"[ML] Random Forest entrenado ({n_estimators} arboles)."
-    )
+    logging.info(f"[ML] Random Forest entrenado ({n_estimators} arboles).")
     return model
 
 
-def evaluate_classification(
-    model, X_test, y_test, model_name: str = "model"
-) -> dict:
+def evaluate_classification(model, X_test, y_test, model_name: str = "model") -> dict:
     """Evaluate classifier. Returns all metrics required by rubric."""
     y_pred = model.predict(X_test)
-    y_proba = (
-        model.predict_proba(X_test)[:, 1]
-        if hasattr(model, "predict_proba")
-        else None
-    )
+    y_proba = model.predict_proba(X_test)[:, 1] if hasattr(model, "predict_proba") else None
 
     metrics = {
         "model": model_name,
@@ -94,9 +85,7 @@ def plot_confusion_matrix(
 ):
     """Save confusion matrix plot."""
     fig, ax = plt.subplots(figsize=(6, 5))
-    ConfusionMatrixDisplay.from_predictions(
-        y_test, y_pred, ax=ax, cmap="Blues", values_format="d"
-    )
+    ConfusionMatrixDisplay.from_predictions(y_test, y_pred, ax=ax, cmap="Blues", values_format="d")
     ax.set_title("Matriz de Confusion")
     plt.savefig(save_path, dpi=100, bbox_inches="tight")
     plt.close()
@@ -137,9 +126,7 @@ def plot_feature_importance(
     fig, ax = plt.subplots(figsize=(10, 6))
     ax.bar(range(len(indices)), importances[indices])
     ax.set_xticks(range(len(indices)))
-    ax.set_xticklabels(
-        [feature_names[i] for i in indices], rotation=45, ha="right"
-    )
+    ax.set_xticklabels([feature_names[i] for i in indices], rotation=45, ha="right")
     ax.set_title("Top 15 Feature Importances")
     ax.set_xlabel("Feature")
     ax.set_ylabel("Importancia")

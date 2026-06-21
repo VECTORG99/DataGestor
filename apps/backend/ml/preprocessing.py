@@ -15,15 +15,9 @@ def load_clean_data(path: str) -> pd.DataFrame:
     return pd.read_csv(path)
 
 
-def create_classification_target(
-    df: pd.DataFrame, method: str = "median"
-) -> np.ndarray:
+def create_classification_target(df: pd.DataFrame, method: str = "median") -> np.ndarray:
     """Create binary target: 1 if total_crimes > threshold, else 0."""
-    threshold = (
-        df["total_crimes"].median()
-        if method == "median"
-        else df["total_crimes"].mean()
-    )
+    threshold = df["total_crimes"].median() if method == "median" else df["total_crimes"].mean()
     return (df["total_crimes"] > threshold).astype(int).values
 
 
@@ -76,9 +70,7 @@ def prepare_features(df: pd.DataFrame) -> pd.DataFrame:
 
 def split_data(X, y, test_size=0.3, random_state=42, stratify=None):
     """Train/test split with optional stratification."""
-    return train_test_split(
-        X, y, test_size=test_size, random_state=random_state, stratify=stratify
-    )
+    return train_test_split(X, y, test_size=test_size, random_state=random_state, stratify=stratify)
 
 
 def preprocess_and_split(
@@ -100,8 +92,6 @@ def preprocess_and_split(
     numeric_cols = ["year", "month_sin", "month_cos"]
 
     preprocessor = build_preprocessor(categorical_cols, numeric_cols)
-    X_train, X_test, y_train, y_test = split_data(
-        X, y, test_size, random_state, stratify
-    )
+    X_train, X_test, y_train, y_test = split_data(X, y, test_size, random_state, stratify)
 
     return X_train, X_test, y_train, y_test, preprocessor

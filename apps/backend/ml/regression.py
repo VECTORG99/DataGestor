@@ -5,6 +5,7 @@ import os
 
 import joblib
 import matplotlib
+
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
@@ -18,9 +19,7 @@ def train_linear_regression(X_train, y_train):
     """Train linear regression model."""
     model = LinearRegression()
     model.fit(X_train, y_train)
-    logging.info(
-        f"[ML] Regresion Lineal entrenada. Coeficientes: {len(model.coef_)}"
-    )
+    logging.info(f"[ML] Regresion Lineal entrenada. Coeficientes: {len(model.coef_)}")
     return model
 
 
@@ -43,17 +42,15 @@ def evaluate_regression(model, X_test, y_test, feature_names: list = None) -> di
     }
 
     if feature_names is not None and hasattr(model, "coef_"):
-        coef_df = pd.DataFrame(
-            {"feature": feature_names, "coefficient": model.coef_}
-        ).sort_values("coefficient", key=abs, ascending=False)
+        coef_df = pd.DataFrame({"feature": feature_names, "coefficient": model.coef_}).sort_values(
+            "coefficient", key=abs, ascending=False
+        )
         metrics["top_coefficients"] = coef_df.head(10).to_dict("records")
 
     return metrics
 
 
-def plot_residuals(
-    y_test, y_pred, save_path: str = "/app/data/metrics/residuals.png"
-):
+def plot_residuals(y_test, y_pred, save_path: str = "/app/data/metrics/residuals.png"):
     """Generate residual plot."""
     residuals = y_test - y_pred
     fig, axes = plt.subplots(1, 2, figsize=(12, 5))
@@ -74,9 +71,7 @@ def plot_residuals(
     logging.info(f"[ML] Grafico de residuales guardado en {save_path}")
 
 
-def save_regression_model(
-    model, path: str = "/app/data/models/linear_regression.joblib"
-):
+def save_regression_model(model, path: str = "/app/data/models/linear_regression.joblib"):
     """Save trained model."""
     os.makedirs(os.path.dirname(path), exist_ok=True)
     joblib.dump(model, path)

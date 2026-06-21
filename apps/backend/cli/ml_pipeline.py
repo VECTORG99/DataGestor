@@ -99,17 +99,13 @@ def main():
     feature_names_r = get_feature_names(pre_r)
 
     model_lr = train_linear_regression(X_train_r_t, y_train_r)
-    metrics_lr = evaluate_regression(
-        model_lr, X_test_r_t, y_test_r, feature_names_r
-    )
+    metrics_lr = evaluate_regression(model_lr, X_test_r_t, y_test_r, feature_names_r)
     plot_residuals(
         y_test_r,
         model_lr.predict(X_test_r_t),
         save_path=str(METRICS_DIR / "residuals.png"),
     )
-    save_regression_model(
-        model_lr, path=str(MODELS_DIR / "linear_regression.joblib")
-    )
+    save_regression_model(model_lr, path=str(MODELS_DIR / "linear_regression.joblib"))
 
     # ========================
     # CLASSIFICATION
@@ -124,9 +120,7 @@ def main():
 
     # Logistic Regression
     logreg = train_logistic_regression(X_train_c_t, y_train_c)
-    metrics_lr_cls = evaluate_classification(
-        logreg, X_test_c_t, y_test_c, "LogisticRegression"
-    )
+    metrics_lr_cls = evaluate_classification(logreg, X_test_c_t, y_test_c, "LogisticRegression")
     y_proba_lr = logreg.predict_proba(X_test_c_t)[:, 1]
     plot_confusion_matrix(
         y_test_c,
@@ -138,15 +132,11 @@ def main():
         y_proba_lr,
         save_path=str(METRICS_DIR / "roc_curve_logreg.png"),
     )
-    save_classification_model(
-        logreg, path=str(MODELS_DIR / "logistic_regression.joblib")
-    )
+    save_classification_model(logreg, path=str(MODELS_DIR / "logistic_regression.joblib"))
 
     # Random Forest
     rf = train_random_forest(X_train_c_t, y_train_c)
-    metrics_rf = evaluate_classification(
-        rf, X_test_c_t, y_test_c, "RandomForest"
-    )
+    metrics_rf = evaluate_classification(rf, X_test_c_t, y_test_c, "RandomForest")
     y_proba_rf = rf.predict_proba(X_test_c_t)[:, 1]
     plot_confusion_matrix(
         y_test_c,
@@ -163,9 +153,7 @@ def main():
         feature_names_c,
         save_path=str(METRICS_DIR / "feature_importance_rf.png"),
     )
-    save_classification_model(
-        rf, path=str(MODELS_DIR / "random_forest.joblib")
-    )
+    save_classification_model(rf, path=str(MODELS_DIR / "random_forest.joblib"))
 
     # ========================
     # SAVE METRICS
