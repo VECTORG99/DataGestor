@@ -76,6 +76,7 @@ export default function App() {
   const [filterBorough, setFilterBorough] = useState("");
   const [filterCategory, setFilterCategory] = useState("");
   const [filterYear, setFilterYear] = useState("");
+  const [mlMetrics, setMlMetrics] = useState(null);
 
   useEffect(() => {
     async function fetchRows() {
@@ -129,6 +130,13 @@ export default function App() {
       setLoading(false);
     }
     fetchRows();
+  }, []);
+
+  useEffect(() => {
+    fetch("/ml/ml_metrics.json")
+      .then((r) => r.json())
+      .then(setMlMetrics)
+      .catch(() => {});
   }, []);
 
   if (loading) {
@@ -387,6 +395,88 @@ export default function App() {
           </Table>
         </TableContainer>
       )}
+
+      {/* ML Insights Section */}
+      <Box sx={{ mt: 6, mb: 2 }}>
+        <Typography variant="h5" fontWeight="bold" gutterBottom align="center">
+          ML Insights — Clasificación de Criminalidad
+        </Typography>
+        {mlMetrics && (
+          <>
+            <Typography variant="subtitle2" align="center" color="text.secondary" gutterBottom>
+              Modelo: {mlMetrics.model} — Predice si un crimen es "alto" (&gt;mediana) o "bajo"
+            </Typography>
+            <Grid container spacing={2} sx={{ mb: 3 }}>
+              {[
+                { label: "Accuracy", value: (mlMetrics.accuracy * 100).toFixed(1) + "%", color: COLORS.secondary },
+                { label: "Precision", value: (mlMetrics.precision * 100).toFixed(1) + "%", color: COLORS.primary },
+                { label: "Recall", value: (mlMetrics.recall * 100).toFixed(1) + "%", color: COLORS.accent },
+                { label: "F1 Score", value: (mlMetrics.f1_score * 100).toFixed(1) + "%", color: COLORS.purple },
+                { label: "ROC AUC", value: mlMetrics.roc_auc.toFixed(4), color: COLORS.teal },
+                { label: "Gini", value: mlMetrics.gini.toFixed(4), color: COLORS.pink },
+              ].map((m) => (
+                <Grid item xs={6} sm={4} md={2} key={m.label}>
+                  <Card>
+                    <CardContent sx={{ textAlign: "center", py: 1.5 }}>
+                      <Typography variant="body2" color="text.secondary">{m.label}</Typography>
+                      <Typography variant="h5" fontWeight="bold" sx={{ color: m.color }}>{m.value}</Typography>
+                    </CardContent>
+                  </Card>
+                </Grid>
+              ))}
+            </Grid>
+            <Grid container spacing={2}>
+              <Grid item xs={12} md={6}>
+                <Paper sx={{ p: 1.5, textAlign: "center" }}>
+                  <Typography variant="subtitle2" gutterBottom>Matriz de Confusión</Typography>
+                  <Box sx={{ display: "flex", justifyContent: "center" }}>
+                    <Box sx={{ display: "inline-grid", gridTemplateColumns: "auto 1fr 1fr", gap: 1, alignItems: "center" }}>
+                      <Box /><Typography variant="caption" sx={{ fontWeight: "bold", textAlign: "center" }}>Pred. Bajo</Typography><Typography variant="caption" sx={{ fontWeight: "bold", textAlign: "center" }}>Pred. Alto</Typography>
+                      <Typography variant="caption" sx={{ fontWeight: "bold" }}>Real Bajo</Typography>
+                      <Box sx={{ bgcolor: "#e8f5e9", border: 1, borderColor: "success.main", borderRadius: 1, px: 2, py: 1 }}><Typography align="center" fontWeight="bold">{mlMetrics.true_negatives.toLocaleString()}</Typography><Typography variant="caption" display="block" align="center">VN</Typography></Box>
+                      <Box sx={{ bgcolor: "#ffebee", border: 1, borderColor: "error.main", borderRadius: 1, px: 2, py: 1 }}><Typography align="center" fontWeight="bold">{mlMetrics.false_positives.toLocaleString()}</Typography><Typography variant="caption" display="block" align="center">FP</Typography></Box>
+                      <Typography variant="caption" sx={{ fontWeight: "bold" }}>Real Alto</Typography>
+                      <Box sx={{ bgcolor: "#ffebee", border: 1, borderColor: "error.main", borderRadius: 1, px: 2, py: 1 }}><Typography align="center" fontWeight="bold">{mlMetrics.false_negatives.toLocaleString()}</Typography><Typography variant="caption" display="block" align="center">FN</Typography></Box>
+                      <Box sx={{ bgcolor: "#e8f5e9", border: 1, borderColor: "success.main", borderRadius: 1, px: 2, py: 1 }}><Typography align="center" fontWeight="bold">{mlMetrics.true_positives.toLocaleString()}</Typography><Typography variant="caption" display="block" align="center">VP</Typography></Box>
+                    </Box>
+                  </Box>
+                </Paper>
+              </Grid>
+              <Grid item xs={12} md={6}>
+                <Paper sx={{ p: 1.5, textAlign: "center" }}>
+                  <Typography variant="subtitle2" gutterBottom>Curva ROC</Typography>
+                  <Box sx={{ position: "relative", width: "100%", maxWidth: 400, mx: "auto" }}>
+                    <svg viewBox="0 0 100 100" style={{ width: "100%", height: "auto" }}>
+                      {/* diagonal reference */}
+                      <line x1="0" y1="100" x2="100" y2="0" stroke="#ccc" strokeWidth="0.5" strokeDasharray="3,3" />
+                      {/* ROC curve */}
+                      <polyline
+                        fill="none"
+                        stroke={COLORS.primary}
+                        strokeWidth="1.5"
+                        points={mlMetrics.roc_curve.fpr.map((f, i) => {
+                          const x = f * 100;
+                          const y = 100 - mlMetrics.roc_curve.tpr[i] * 100;
+                          return `${x},${y}`;
+                        }).join(" ")}
+                      />
+                      {/* axis labels */}
+                      <text x="50" y="97" fontSize="3" textAnchor="middle" fill="#666">Tasa de Falsos Positivos (FPR)</text>
+                      <text x="-50" y="2" fontSize="3" textAnchor="middle" fill="#666" transform="rotate(-90, -50, 2)">Tasa de Verdaderos Positivos (TPR)</text>
+                    </svg>
+                    <Typography variant="caption" display="block" color="text.secondary">
+                      AUC = {mlMetrics.roc_auc.toFixed(4)}
+                    </Typography>
+                  </Box>
+                </Paper>
+              </Grid>
+            </Grid>
+          </>
+        )}
+        {!mlMetrics && (
+          <Alert severity="info">Ejecuta el pipeline de ML para ver métricas de clasificación.</Alert>
+        )}
+      </Box>
     </Container>
   );
 }
