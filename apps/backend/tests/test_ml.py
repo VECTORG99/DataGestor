@@ -100,10 +100,7 @@ class TestRegression:
             create_regression_target,
             prepare_features,
         )
-        from apps.backend.ml.regression import (
-            evaluate_regression,
-            train_linear_regression,
-        )
+        from apps.backend.ml.regression import train_linear_regression
 
         X = prepare_features(sample_df)
         y = create_regression_target(sample_df)
