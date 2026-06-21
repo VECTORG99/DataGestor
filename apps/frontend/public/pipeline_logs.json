@@ -1,0 +1,116 @@
+{
+  "production_runs": [
+    {
+      "run_id": "2026-06-21T07:18:33",
+      "mode": "Produccion",
+      "duration_seconds": 363.8,
+      "stages": [
+        {
+          "stage": "Ingesta BigQuery",
+          "duration_s": 320.94
+        },
+        {
+          "stage": "Limpieza y Agregación",
+          "duration_s": 6.85,
+          "records_in": 3000000,
+          "records_out": 77524,
+          "reduction_pct": 97.4
+        },
+        {
+          "stage": "Validación",
+          "duration_s": 0.02
+        },
+        {
+          "stage": "Guardado",
+          "duration_s": 0.2
+        },
+        {
+          "stage": "Carga Supabase",
+          "duration_s": 33.27,
+          "records_loaded": 77524
+        }
+      ],
+      "total_records_in": 3000000,
+      "total_records_out": 77524,
+      "completeness_pct": 100.0,
+      "warnings_count": 0
+    }
+  ],
+  "cleaning_details": [
+    {
+      "step": "Estandarizar columnas",
+      "detail": "lowercase, espacios → guion bajo"
+    },
+    {
+      "step": "Valores nulos",
+      "count": 0,
+      "detail": "Se eliminan filas con borough, category o value nulos"
+    },
+    {
+      "step": "Tipos de datos",
+      "detail": "year/month → Int64, value → float64, textos → string"
+    },
+    {
+      "step": "Validar rangos",
+      "count": 0,
+      "detail": "Meses 1-12, años válidos, sin valores negativos"
+    },
+    {
+      "step": "Normalizar textos",
+      "detail": "Strip, title case, correcciones ortográficas en boroughs"
+    },
+    {
+      "step": "Eliminar duplicados",
+      "count": 0,
+      "detail": "Filas completamente idénticas"
+    },
+    {
+      "step": "Agregación (GROUP BY)",
+      "count": 2922476,
+      "detail": "Agrupa por (borough, major_category, minor_category, year, month) y suma values"
+    },
+    {
+      "step": "Detección de outliers",
+      "method": "IQR",
+      "count": 11133,
+      "detail": "Identificados pero no eliminados"
+    }
+  ],
+  "recent_entries": [
+    {
+      "ts": "07:24:03",
+      "level": "INFO",
+      "msg": "Carga completada exitosamente en tabla 'london_crime_aggregated'"
+    },
+    {
+      "ts": "07:24:03",
+      "level": "INFO",
+      "msg": "Registros cargados: 77524"
+    },
+    {
+      "ts": "07:24:03",
+      "level": "INFO",
+      "msg": "Duracion total: 363.80 seg"
+    },
+    {
+      "ts": "07:24:03",
+      "level": "INFO",
+      "msg": "Registros: 3000000 > 77524 (97.4% reduccion)"
+    },
+    {
+      "ts": "07:24:03",
+      "level": "INFO",
+      "msg": "Completitud: 100.0%"
+    },
+    {
+      "ts": "07:24:03",
+      "level": "INFO",
+      "msg": "Advertencias: 0"
+    },
+    {
+      "ts": "07:24:03",
+      "level": "INFO",
+      "msg": "--- PIPELINE DATAOPS FINALIZADO CON ÉXITO ---"
+    }
+  ]
+}

@@ -21,7 +21,13 @@ import FormControl from "@mui/material/FormControl";
 import InputLabel from "@mui/material/InputLabel";
 import Select from "@mui/material/Select";
 import MenuItem from "@mui/material/MenuItem";
+import Chip from "@mui/material/Chip";
+import Collapse from "@mui/material/Collapse";
+import IconButton from "@mui/material/IconButton";
 import FileDownloadIcon from "@mui/icons-material/FileDownload";
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
+import ExpandLessIcon from "@mui/icons-material/ExpandLess";
+import TimelineIcon from "@mui/icons-material/Timeline";
 
 import { Bar, Pie, Line } from "react-chartjs-2";
 import {
@@ -90,6 +96,8 @@ export default function App() {
   const [filterYear, setFilterYear] = useState("");
   const [mlMetrics, setMlMetrics] = useState(null);
   const [pipelineStats, setPipelineStats] = useState(null);
+  const [pipelineLogs, setPipelineLogs] = useState(null);
+  const [logsOpen, setLogsOpen] = useState(false);
   const [exporting, setExporting] = useState(false);
 
   useEffect(() => {
@@ -162,6 +170,13 @@ export default function App() {
     fetch("/pipeline_stats.json")
       .then((r) => r.json())
       .then(setPipelineStats)
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    fetch("/pipeline_logs.json")
+      .then((r) => r.json())
+      .then(setPipelineLogs)
       .catch(() => {});
   }, []);
 
@@ -410,6 +425,94 @@ export default function App() {
           </CardContent></Card>
         </Grid>
       </Grid>
+
+      {/* Pipeline Logs — collapsible section */}
+      <Paper sx={{ mb: 4, overflow: "hidden" }}>
+        <Box sx={{ display: "flex", alignItems: "center", px: 2, py: 1.5, bgcolor: "#f5f5f5", cursor: "pointer" }} onClick={() => setLogsOpen(!logsOpen)}>
+          <TimelineIcon sx={{ mr: 1, fontSize: 20, color: "text.secondary" }} />
+          <Typography variant="subtitle2" fontWeight="bold" sx={{ flexGrow: 1 }}>
+            Pipeline ETL — Resumen de Ejecución
+          </Typography>
+          {pipelineLogs?.production_runs?.[0] && (
+            <>
+              <Chip label={pipelineLogs.production_runs[0].mode} size="small" color={pipelineLogs.production_runs[0].mode === "Produccion" ? "success" : "warning"} sx={{ mr: 1, height: 20, fontSize: 11 }} />
+              <Typography variant="caption" color="text.secondary" sx={{ mr: 2 }}>
+                {pipelineLogs.production_runs[0].duration_seconds.toFixed(1)}s · {pipelineLogs.production_runs[0].total_records_in.toLocaleString()} → {pipelineLogs.production_runs[0].total_records_out.toLocaleString()}
+              </Typography>
+            </>
+          )}
+          <IconButton size="small">{logsOpen ? <ExpandLessIcon /> : <ExpandMoreIcon />}</IconButton>
+        </Box>
+
+        <Collapse in={logsOpen}>
+          {pipelineLogs ? (
+            <Box sx={{ px: 2, py: 2 }}>
+              {/* Run summary */}
+              {pipelineLogs.production_runs?.map((run, ri) => (
+                <Box key={ri} sx={{ mb: 2 }}>
+                  <Typography variant="caption" color="text.secondary" sx={{ textTransform: "uppercase", letterSpacing: 1, fontSize: 10 }}>Ejecución: {run.run_id}</Typography>
+                  <Grid container spacing={1.5} sx={{ mt: 0.5 }}>
+                    {run.stages.map((s, si) => (
+                      <Grid item xs={6} sm={4} md={2} key={si}>
+                        <Card variant="outlined" sx={{ bgcolor: "#fafafa" }}>
+                          <CardContent sx={{ py: 1, px: 1.5, "&:last-child": { pb: 1 } }}>
+                            <Typography variant="caption" color="text.secondary" sx={{ fontSize: 10, lineHeight: 1.2, display: "block" }}>{s.stage}</Typography>
+                            <Typography variant="body2" fontWeight="bold">{s.duration_s.toFixed(1)}s</Typography>
+                            {s.records_in && <Typography variant="caption" color="text.secondary" sx={{ fontSize: 10 }}>{s.records_in.toLocaleString()} → {s.records_out?.toLocaleString() || "—"}</Typography>}
+                            {s.reduction_pct && <Typography variant="caption" color="primary" sx={{ fontSize: 10 }}>-{s.reduction_pct}%</Typography>}
+                            {s.records_loaded && <Typography variant="caption" color="text.secondary" sx={{ fontSize: 10 }}>{s.records_loaded.toLocaleString()} registros</Typography>}
+                          </CardContent>
+                        </Card>
+                      </Grid>
+                    ))}
+                  </Grid>
+                </Box>
+              ))}
+
+              {/* Cleaning steps table */}
+              <Typography variant="caption" color="text.secondary" sx={{ textTransform: "uppercase", letterSpacing: 1, fontSize: 10 }}>Pasos de Limpieza</Typography>
+              <Table size="small" sx={{ mt: 0.5, mb: 2 }}>
+                <TableHead>
+                  <TableRow>
+                    <TableCell sx={{ fontWeight: "bold", fontSize: 11, py: 0.5 }}>Paso</TableCell>
+                    <TableCell sx={{ fontWeight: "bold", fontSize: 11, py: 0.5 }} align="right">Registros Afectados</TableCell>
+                    <TableCell sx={{ fontWeight: "bold", fontSize: 11, py: 0.5 }}>Detalle</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {pipelineLogs.cleaning_details.map((step, i) => (
+                    <TableRow key={i}>
+                      <TableCell sx={{ fontSize: 11, py: 0.5 }}>{step.step}</TableCell>
+                      <TableCell sx={{ fontSize: 11, py: 0.5 }} align="right">
+                        {step.count !== undefined ? (
+                          <Chip label={step.count.toLocaleString()} size="small" color={step.count > 0 ? "warning" : "default"} sx={{ height: 18, fontSize: 10 }} />
+                        ) : "—"}
+                      </TableCell>
+                      <TableCell sx={{ fontSize: 11, py: 0.5, color: "text.secondary" }}>{step.detail}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+
+              {/* Recent log entries */}
+              <Typography variant="caption" color="text.secondary" sx={{ textTransform: "uppercase", letterSpacing: 1, fontSize: 10 }}>Últimos Eventos del Pipeline</Typography>
+              <Box sx={{ bgcolor: "#1a1a2e", color: "#00ff88", borderRadius: 1, p: 1.5, mt: 0.5, fontFamily: "monospace", fontSize: 11, maxHeight: 200, overflowY: "auto" }}>
+                {pipelineLogs.recent_entries.map((e, i) => (
+                  <Box key={i} sx={{ display: "flex", gap: 1 }}>
+                    <Typography variant="caption" sx={{ color: "#888", fontFamily: "monospace", fontSize: 10, whiteSpace: "nowrap" }}>{e.ts}</Typography>
+                    <Typography variant="caption" sx={{ color: e.level === "WARN" ? "#ffaa00" : "#00ff88", fontFamily: "monospace", fontSize: 10, whiteSpace: "nowrap" }}>[{e.level}]</Typography>
+                    <Typography variant="caption" sx={{ color: "#ccc", fontFamily: "monospace", fontSize: 10 }}>{e.msg}</Typography>
+                  </Box>
+                ))}
+              </Box>
+            </Box>
+          ) : (
+            <Box sx={{ px: 2, py: 3, textAlign: "center" }}>
+              <Typography variant="body2" color="text.secondary">No hay logs de pipeline disponibles. Ejecuta el pipeline ETL para verlos.</Typography>
+            </Box>
+          )}
+        </Collapse>
+      </Paper>
 
       <Paper sx={{ p: { xs: 1.5, sm: 2 }, mb: 4 }}>
         <Typography variant="subtitle1" fontWeight="bold" gutterBottom align="center">
