@@ -55,7 +55,6 @@ ChartJS.register(
 );
 
 const TABLE_NAME = import.meta.env.VITE_SUPABASE_TABLE_NAME || "london_crime_aggregated";
-const FETCH_LIMIT = 5000;
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 const supabase = createClient(supabaseUrl || "", supabaseKey || "");
@@ -89,7 +88,7 @@ export default function App() {
       const { data, error } = await supabase
         .from(TABLE_NAME)
         .select("*")
-        .range(0, FETCH_LIMIT - 1);
+        .order("borough", { ascending: true });
       if (error) {
         setRows([]);
       } else {
