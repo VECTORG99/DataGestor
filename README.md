@@ -1,132 +1,154 @@
 # Sistema de Inteligencia Territorial para la Seguridad Publica en Londres
 
 [![CI Backend](https://github.com/VECTORG99/DataGestor/actions/workflows/ci-backend.yml/badge.svg)](https://github.com/VECTORG99/DataGestor/actions/workflows/ci-backend.yml)
+[![Vercel](https://img.shields.io/badge/deploy-Vercel-black)](https://data-gestor.vercel.app/)
+[![Python](https://img.shields.io/badge/python-3.11-blue)](https://www.python.org/)
+[![React](https://img.shields.io/badge/react-19-61DAFB)](https://react.dev/)
+
+**Dashboard interactivo** de criminalidad en Londres (2008-2016) con pipeline ETL desde BigQuery, almacenamiento en Supabase, y visualizacion con React + Material UI + Chart.js. Incluye un modelo de Machine Learning (Regresion Logistica) para clasificacion binaria de alta/baja incidencia delictiva.
+
+**Demo en vivo:** [data-gestor.vercel.app](https://data-gestor.vercel.app/)
 
 ---
-**Proyecto limpio y automatizado. Frontend React + Material UI leyendo directamente de Supabase.**
-- Deploy preparado para Docker Compose (local/producción).
-- Acceso seguro: nunca necesitas exponer credenciales privadas en el frontend.
-- Arquitectura clara: backend Python opcional, frontend desacoplado, datos en Supabase.
-- Repositorio: https://github.com/VECTORG99/DataGestor
+
+## Tabla de Contenidos
+
+- [Arquitectura General](#arquitectura-general)
+- [Dashboard](#dashboard)
+- [Pipeline de Datos](#pipeline-de-datos)
+- [Machine Learning](#machine-learning)
+- [Estructura del Proyecto](#estructura-del-proyecto)
+- [Inicio Rapido](#inicio-rapido)
+- [Despliegue](#despliegue)
+- [CI/CD](#cicd)
+- [Tests](#tests)
+- [Seguridad](#seguridad)
+- [KPIs y Monitoreo](#kpis-y-monitoreo)
+
 ---
 
-## Seguridad
-
-Ver [`SECURITY.md`](SECURITY.md) para el plan completo.
-
-**Resumen:**
-- **Leyes**: GDPR (UE) y Ley 19.628 (Chile) aplicadas al tratamiento de datos.
-- **Cifrado en tránsito**: TLS 1.3 en todas las conexiones externas (Supabase, BigQuery).
-- **Cifrado en reposo**: AES-256 en Supabase y BigQuery por defecto.
-- **Control de acceso**: Row-Level Security (RLS) en Supabase - `anon_key` solo lectura, `service_role` escritura.
-- **Secretos**: `.env`, `credentials.json` y `*.local` en `.gitignore`.
-
-## Metodología
-
-### DataOps
-El proyecto sigue principios **DataOps**: integración continua (CI/CD con GitHub Actions), automatización del pipeline ETL (Docker Compose), monitoreo de calidad (validación estructural y semántica), y métricas de rendimiento (KPIs por ejecución). Esto permite ciclos cortos de retroalimentación y detección temprana de anomalías.
-
-### PMBOK
-Se aplican los 5 grupos de procesos de **PMBOK**:
-
-| Grupo | Aplicación en el proyecto |
-|-------|--------------------------|
-| Inicio | Identificación del problema: analizar datos de criminalidad en Londres para seguridad pública |
-| Planificación | WBS con etapas: ingesta, limpieza, validación, carga, visualización |
-| Ejecución | Implementación del pipeline Python + frontend React desplegado con Docker Compose |
-| Monitoreo y Control | CI/CD (black, flake8, pytest), KPIs de latencia y calidad, logging estructurado |
-| Cierre | Documentación (README, SECURITY.md), repositorio GitHub, informe técnico |
-
-### Por que DataOps + PMBOK?
-DataOps aporta agilidad y automatización al ciclo de datos; PMBOK entrega la estructura de gestión de proyectos. La combinación permite un proyecto predecible en plazos, repetible en ejecución y medible en calidad.
-
-## Etapas del Pipeline
-
-### 1. Ingesta y Limpieza de Datos
-- Origen: Dataset público `london_crime` (BigQuery)
-- Pipeline backend Python con 10 etapas de limpieza:
-
-| # | Etapa | Función | Descripción |
-|---|-------|---------|-------------|
-| 1 | Estandarizar columnas | `standardize_column_names()` | Convierte nombres a snake_case |
-| 2 | Manejo de nulos | `handle_null_values()` | Elimina filas con nulos en columnas críticas; reconoce `NULL`, `Unknown`, `N/A` como nulos |
-| 3 | Validar tipos | `validate_data_types()` | Convierte `year`/`month` a `Int64`, `value` a `float64`, texto a `string` |
-| 4 | Validar rangos | `validate_value_ranges()` | Elimina meses fuera de [1,12], anyos < 2000, valores negativos |
-| 5 | Normalizar texto | `normalize_text_fields()` | Elimina espacios, título capitalizado, corrige ortografía de boroughs |
-| 6 | Eliminar duplicados | `detect_and_remove_duplicates()` | Elimina filas completamente idénticas (todas las columnas) |
-| 7 | Agregar crímenes | `aggregate_crime_data()` | Agrupa por `(borough, major_category, minor_category, year, month)` y suma valores |
-| 8 | Crear fecha | `create_date_column()` | Crea columna `date` unificada desde `year` + `month` |
-| 9 | Detectar outliers | `detect_outliers()` | Reporta valores atípicos (IQR/Z-score); no elimina por defecto |
-| 10 | Eliminar columnas | `remove_unnecessary_columns()` | Conserva solo columnas relevantes |
-
-- Generación del dataset limpio `london_crime_aggregated`.
-- Herramienta: Scripts en Python, ejecutables vía Docker ("london_crime_app")
-- Output: Tabla en Supabase + archivos CSV/Parquet en `data/processed/`.
-
-### 2. Carga a la Base de Datos Analítica
-- Destino: Supabase (PostgreSQL en la nube)
-- Pipeline backend Python: Inserta los datos agregados en la tabla `london_crime_aggregated`.
-- Reglas: Solo lectura desde el frontend, escritura protegida.
-
-### 3. Exposición de Datos para Visualización
-- En Supabase: Exposición de la información vía REST y SDKs públicos (JS).
-- Seguridad: Uso exclusivo de `anon_key` (solo lectura en frontend).
-
-### 4. Visualización & Consumo Frontend
-
-**Tecnologías:**
-- **React 19** — UI components y estado
-- **Vite 8** (Rolldown) — bundler y dev server
-- **Material UI 9** — diseño de componentes (Cards, Grid, Tablas, Selectores)
-- **Chart.js 4** + **react-chartjs-2 5** — gráficos (barras, donut, línea)
-- **Supabase JS SDK 2** — consultas a la base de datos PostgreSQL
-- **Nginx** — servidor de producción del build estático
-
-**Dashboard:**
-  - KPIs: total crímenes, distrito líder, categoría principal, registros filtrados.
-  - Gráficos: barras por distrito, donut por categoría, línea de tendencia temporal, top 10 subcategorías.
-  - Filtros interactivos: distrito, categoría, año (actualizan todos los charts y tablas).
-  - Tabla heatmap: crímenes por distrito y año.
-  - Tabla detallada con datos crudos (primeros 100 registros).
-  - Diseño responsive, centrado y apilado verticalmente.
-- Docker Compose: Orquestación automática de frontend + backend (pipeline).
-- Deploy:
-  - Local: Nginx sirve la build de React.
-  - Producción: Solo se necesita la URL y ANON_KEY de Supabase en el frontend (sin backend ni DB local).
-
-### 5. Automatización y Ciclo DevOps
-- Docker Compose: Reproduce y automatiza todo el stack localmente.
-- CI/CD: Workflow de backend CI (black + flake8 + pytest).
-- Limpieza y mantenimiento: Scripts/indicaciones para limpiar nodos, dependencias y mantener el entorno reproducible.
-
-### 6. Pipeline de Machine Learning
-
-Pipeline de **clasificacion binaria** con **Logistic Regression** que predice si un periodo tendra alta o baja incidencia delictiva.
-
-**Arquitectura:**
+## Arquitectura General
 
 ```
-Dataset agregado (london_crime_aggregated)
-    |
-    ▼
-Preprocesamiento (one-hot encoding, StandardScaler, encoding ciclico)
-    |
-    ▼
-Train/Test Split (70/30, estratificado)
-    |
-    ▼
-Logistic Regression → Confusion Matrix, ROC, AUC, Gini, F1, Accuracy
+BigQuery Public Dataset               Google Cloud
+(london_crime, 3M rows)               Service Account
+        |                                     |
+        v                                     |
+  Pipeline Python (ETL)  <-------------------+
+  - 10 etapas de limpieza
+  - Agregacion: 3M -> 77,524 filas
+  - Validacion y deteccion de outliers
+        |
+        v
+  Supabase (PostgreSQL)              Pipeline ML
+  tabla: london_crime_aggregated      Logistic Regression
+        |                             Accuracy: 89%
+        |                             ROC AUC: 0.963
+        v                                     |
+  Frontend React (Vercel)  <------------------+
+  - 77,524 filas via paginacion paralela
+  - Filtros por distrito/categoria/anio
+  - Charts + Heatmap + ML Insights
 ```
 
-**Resultados (77,524 registros, 3M BigQuery):**
+### Componentes clave
 
-| Metrica | Logistic Regression |
-|---------|-------------------|
-| Accuracy | 0.890 |
-| ROC AUC | **0.963** |
-| Gini | **0.927** |
-| Precision / Recall | 0.865 / 0.914 |
-| F1 | 0.889 |
+| Componente | Tecnologia | Proposito |
+|---|---|---|
+| **Fuente de datos** | Google BigQuery | Dataset publico `london_crime` (~3M registros crudos) |
+| **Pipeline ETL** | Python (pandas, SQLAlchemy) | Ingesta, limpieza, agregacion, carga a Supabase |
+| **Base de datos** | Supabase (PostgreSQL) | Almacenamiento de 77,524 registros agregados |
+| **Frontend** | React 19 + Vite 8 + MUI 9 | Dashboard interactivo desplegado en Vercel |
+| **ML** | scikit-learn (LogisticRegression) | Clasificacion binaria de criminalidad |
+| **CI/CD** | GitHub Actions | Lint + tests automaticos en cada push |
+
+### Nota sobre paginacion en Supabase
+
+El API REST de Supabase (PostgREST) limita las respuestas a **1,000 filas por request**. El frontend maneja esto con paginacion paralela en batches:
+
+- Primero obtiene el total de filas via `count=exact`
+- Luego descarga las 77,524 filas en ~78 requests paralelos (10 concurrentes)
+- Los datos se agregan en el cliente para los charts
+
+---
+
+## Dashboard
+
+https://data-gestor.vercel.app/
+
+### Vistas
+
+| Seccion | Descripcion |
+|---|---|
+| **KPIs** | Total crimenes (1.3M+), distrito lider, categoria principal, registros filtrados |
+| **Filtros** | Selectores de distrito (33), categoria (8), ano (2008-2016) |
+| **Crimenes por Distrito** | Grafico de barras con totales por borough |
+| **Proporcion por Categoria** | Grafico donut con distribucion por tipo de crimen |
+| **Tendencia Temporal** | Linea temporal mes a mes (96 puntos) |
+| **Top 10 Subcategorias** | Barras horizontales con las subcategorias mas frecuentes |
+| **Crimenes por Distrito y Ano** | Tabla heatmap (33 boroughs x 9 anos) |
+| **Datos Detallados** | Tabla con los primeros 100 registros filtrados |
+| **ML Insights** | Metricas del modelo, matriz de confusion, curva ROC |
+
+---
+
+## Pipeline de Datos
+
+### 1. Ingesta
+
+Origen: `bigquery-public-data.london_crime.crime_by_lsoa` (Google BigQuery).
+Modo produccion: hasta **3M filas**. Modo demo: **150 filas sinteticas** (Poisson, seed 42).
+
+### 2. Limpieza (10 etapas)
+
+| # | Etapa | Descripcion |
+|---|-------|-------------|
+| 1 | Estandarizar columnas | snake_case, nombres consistentes |
+| 2 | Manejo de nulos | Elimina filas con nulos en columnas criticas |
+| 3 | Validar tipos | `year`/`month` -> Int64, `value` -> float64 |
+| 4 | Validar rangos | Mes [1,12], ano >= 2000, valor >= 0 |
+| 5 | Normalizar texto | Strip, title(), correccion ortografica de boroughs |
+| 6 | Eliminar duplicados | Filas identicas (todas las columnas) |
+| 7 | **Agregar** | `GROUP BY (borough, major_category, minor_category, year, month)` + `SUM(value)` |
+| 8 | Crear fecha | Columna `date` desde year + month |
+| 9 | Detectar outliers | IQR + Z-score (solo reporte, no elimina) |
+| 10 | Eliminar columnas | Conserva solo columnas relevantes |
+
+**Reduccion**: 3M filas crudas -> **77,524 filas agregadas** (97.4%).
+
+### 3. Carga a Supabase
+
+```bash
+docker exec london_crime_app python apps/backend/cli/pipeline_dataops.py
+```
+
+Tabla: `london_crime_aggregated` con columnas `borough, major_category, minor_category, year, month, total_crimes, date`.
+
+---
+
+## Machine Learning
+
+Pipeline de clasificacion binaria con **Logistic Regression**.
+
+**Target**: `1` si `total_crimes > mediana` (alta incidencia), `0` si no.
+
+**Features** (6):
+- `borough`, `major_category`, `minor_category` (OneHotEncoding)
+- `year` (numerico)
+- `month_sin`, `month_cos` (codificacion ciclica)
+
+**Metricas** (77,524 registros, train/test 70/30):
+
+| Metrica | Valor |
+|---------|-------|
+| Accuracy | 89.0% |
+| Precision | 86.5% |
+| Recall | 91.4% |
+| F1 Score | 88.9% |
+| ROC AUC | **0.9634** |
+| Gini | **0.9267** |
+
+El modelo se entrena offline y las metricas se muestran en la seccion **ML Insights** del dashboard.
 
 ```bash
 docker exec london_crime_app python apps/backend/cli/ml_pipeline.py
@@ -134,147 +156,164 @@ docker exec london_crime_app python apps/backend/cli/ml_pipeline.py
 
 ---
 
-## Diagrama de Flujo Simplificado
+## Estructura del Proyecto
 
 ```
-Dataset Bruto (BigQuery 3M rows)
-     |
-Ingesta y Limpieza (Python, Docker)
-     |
-Carga a Supabase (PostgreSQL) — 77k filas agregadas
-     |
-Pipeline ML (Logistic Regression)
-     |
-Consulta Frontend (React SPA)
-     |
-Visualizacion Profesional
+DataGestor/
+├── apps/
+│   ├── backend/
+│   │   ├── pipeline/        # ETL: ingestion, cleaning, loading, metrics
+│   │   ├── ml/              # ML: preprocessing, classification
+│   │   ├── cli/             # CLI: pipeline_dataops.py, ml_pipeline.py
+│   │   └── tests/           # 33 tests (cleaning, loading, ml, pipeline)
+│   └── frontend/
+│       ├── src/App.jsx       # Dashboard principal
+│       ├── public/ml/        # Artefactos ML (metricas, graficos)
+│       ├── vercel.json       # Config Vercel
+│       └── package.json
+├── config/
+│   ├── settings.py           # Config centralizada del pipeline
+│   ├── .env.example          # Plantilla de variables de entorno
+│   ├── boroughs.json         # 33 London boroughs
+│   └── categories.json       # Categorias de crimen
+├── data/
+│   ├── raw/                  # Datos crudos (Parquet)
+│   ├── validated/            # Datos validados
+│   ├── processed/            # Datos agregados (CSV + Parquet)
+│   ├── logs/                 # pipeline.log
+│   ├── metrics/              # pipeline_metrics.jsonl, ml_metrics.json, *.png
+│   └── models/               # logistic_regression.joblib
+├── infra/
+│   ├── docker-compose.yml    # Orquestacion local
+│   ├── backend.Dockerfile
+│   └── frontend.Dockerfile
+├── docs/
+│   └── ml_pipeline.md
+├── .github/workflows/
+│   └── ci-backend.yml        # GitHub Actions
+├── SECURITY.md
+└── requirements.txt
 ```
+
 ---
 
-## 1. Descripción del Proyecto
-Este repositorio contiene el diseño de arquitectura y la planificación para un sistema de gestión de datos basado en el dataset público `london_crime` de Google BigQuery. El objetivo es proporcionar una plataforma escalable para identificar focos de alta incidencia delictiva y analizar tendencias históricas en la ciudad de Londres desde el año 2008.
+## Inicio Rapido
 
-## 2. Arquitectura
-Los datos se extraen desde **BigQuery** (Google Cloud), se procesan con el pipeline Python, se almacenan en **Supabase** (PostgreSQL) y se visualizan en un **frontend React**. No se implementa Lakehouse ni Medallion; el stack prioriza simplicidad y reproducibilidad con Docker Compose.
+### Requisitos
 
-## 3. Instrucciones rápidas de Instalación y Uso
+- Node.js 20+
+- Python 3.11+ (para pipeline local)
+- Docker + Docker Compose (opcional, para stack completo)
+- Cuenta de Supabase con tabla `london_crime_aggregated`
+
+### Instalacion
 
 ```bash
-# 1. Clonar el repositorio
+# 1. Clonar
 git clone https://github.com/VECTORG99/DataGestor.git
 cd DataGestor
 
 # 2. Configurar credenciales
-#    Copia tus credenciales públicas de Supabase en apps/frontend/.env.local
-#    (Opcional) Coloca credenciales GCP en config/credentials.json
+cp config/.env.example .env
+# Editar .env con tus credenciales de Supabase y GCP
 
-# 3. Levantar todo con Docker Compose
+cp config/.env.example apps/frontend/.env.local
+# Editar con VITE_SUPABASE_URL y VITE_SUPABASE_ANON_KEY
+
+# 3. Frontend (desarrollo local)
+cd apps/frontend
+npm install
+npm run dev
+# Abrir http://localhost:5173
+
+# 4. Pipeline ETL (via Docker)
+cd ../..
 docker compose -f infra/docker-compose.yml up --build -d
-
-# 4. Abrir en navegador
-#    http://localhost:5173
+docker exec london_crime_app python apps/backend/cli/pipeline_dataops.py
 ```
 
-### Ejecutar el pipeline backend (opcional)
-```bash
-docker exec -it london_crime_app python apps/backend/cli/pipeline_dataops.py
-```
+---
 
-## 4. Estructura del Proyecto
+## Despliegue
 
-```
-DataGestor/
-|-- apps/                   # Aplicaciones
-|   |-- backend/            # Codigo Python (pipeline ETL + ML)
-|   |   |-- pipeline/       #   ingestion, cleaning, loading, metrics
-|   |   |-- ml/             #   preprocessing, classification
-|   |   |-- cli/            #   pipeline_dataops.py, ml_pipeline.py
-|   |   |-- tests/          #   test_*.py (33 tests total)
-|   |-- frontend/           # React SPA (Vite + Material UI + Chart.js)
-|       |-- src/            #   App.jsx, main.jsx
-|       |-- public/         #   Archivos estaticos
-|       |-- .env.local      #   Credenciales Supabase (no subir)
-|       |-- package.json
-|-- config/                 # Configuracion sensible (no subir a git)
-|   |-- .env.example        # Plantilla de variables de entorno
-|   |-- credentials.json    # Credenciales GCP
-|-- data/                   # Datos locales (no subir a git)
-|   |-- raw/                # Datos originales sin procesar
-|   |-- validated/          # Datos validados (reporte de calidad)
-|   |-- logs/               # Logs del pipeline
-|   |-- metrics/            # KPIs del pipeline (JSONL)
-|   |-- processed/          # Datos limpios (CSV + Parquet) generados por el pipeline
-|-- infra/                  # Infraestructura (Docker)
-|   |-- backend.Dockerfile
-|   |-- frontend.Dockerfile
-|   |-- docker-compose.yml
-|-- docs/                   # Documentacion
-|   |-- ml_pipeline.md      # Pipeline de Machine Learning
-|-- .github/workflows/      # CI/CD
-|   |-- ci-backend.yml      # Lint + test del backend
-|-- requirements.txt
-|-- README.md
-```
+### Vercel (produccion)
 
-## CI/CD en GitHub Actions
+El frontend se despliega en Vercel con integracion Git:
+
+1. Conecta el repo `VECTORG99/DataGestor` en [vercel.com](https://vercel.com)
+2. Rama: `master`
+3. Framework: Vite
+4. Variables de entorno requeridas:
+   - `VITE_SUPABASE_URL`
+   - `VITE_SUPABASE_ANON_KEY`
+   - `VITE_SUPABASE_TABLE_NAME` (opcional, default: `london_crime_aggregated`)
+
+Cada push a `master` depliega automaticamente.
+
+---
+
+## CI/CD
 
 | Workflow | Archivo | Disparo |
 |---|---|---|
 | Backend CI | `.github/workflows/ci-backend.yml` | Push/PR a `master` |
 
-El backend CI ejecuta:
+Ejecuta:
 - `black --check apps/backend/` (formato)
 - `flake8 apps/backend/` (lint)
-- `python -m pytest apps/backend/tests/ -v` (tests unitarios)
+- `python -m pytest apps/backend/tests/ -v` (tests)
 
 ---
 
 ## Tests
 
-Los tests unitarios cubren cada etapa del pipeline de limpieza:
+33 tests que cubren el pipeline ETL y ML:
 
-Los tests unitarios cubren el pipeline ETL y el pipeline ML:
-
-| Archivo | Tests | Cantidad |
-|---------|-------|----------|
-| `tests/test_cleaning.py` | Estandarizacion, nulos, tipos, rangos, texto, duplicados, fecha, outliers, columnas, calidad | 21 |
-| `tests/test_loading.py` | `save_clean_data` (CSV + Parquet) | 2 |
+| Archivo | Cobertura | Tests |
+|---------|-----------|-------|
+| `tests/test_cleaning.py` | Estandarizacion, nulos, tipos, rangos, texto, duplicados, fecha, outliers | 21 |
+| `tests/test_loading.py` | Guardado CSV + Parquet | 2 |
 | `tests/test_ml.py` | Preprocessing, clasificacion | 7 |
-| `tests/test_pipeline_dataops.py` | Importacion y entorno | 2 |
-
-**Total: 33 tests**
-
-### Ejecutar tests localmente
+| `tests/test_pipeline_dataops.py` | Importacion, entorno | 2 |
 
 ```bash
-# Opción 1: Directo (requiere PYTHONPATH)
+# Local
 PYTHONPATH=. python -m pytest apps/backend/tests/ -v
 
-# Opción 2: Docker
+# Docker
 docker exec london_crime_app python -m pytest apps/backend/tests/ -v
-
-# Opción 3: Instalar pytest y ejecutar
-pip install pytest && python -m pytest apps/backend/tests/ -v
 ```
 
 ---
 
-## Monitoreo y KPIs
+## Seguridad
 
-El pipeline registra automáticamente métricas de cada ejecución:
+Ver [`SECURITY.md`](SECURITY.md) para el plan completo.
 
-| KPI | Descripción | Ejemplo |
+**Resumen:**
+- **GDPR + Ley 19.628** (Chile): datos anonimos y agregados, sin PII
+- **TLS 1.3** en todas las conexiones externas
+- **AES-256** en reposo (Supabase, BigQuery)
+- **RLS en Supabase**: `anon_key` solo lectura, `service_role` escritura
+- **Secretos**: `.env`, `credentials.json`, `*.local` en `.gitignore`
+
+---
+
+## KPIs y Monitoreo
+
+El pipeline registra metricas de cada ejecucion:
+
+| KPI | Descripcion | Ejemplo |
 |-----|-------------|---------|
-| Latencia | Duración por etapa (ingesta, limpieza, validación, guardado, carga) | `limpieza: 0.02s` |
-| Volumen | Registros iniciales -> finales con % de reduccion | `150 -> 146 (2.7%)` |
-| Completitud | % de datos no nulos en columnas críticas | `100.0%` |
-| Outliers | Valores atípicos detectados (IQR) | `7` |
+| Latencia | Duracion por etapa | `limpieza: 6.85s` |
+| Volumen | Reduction 3M -> 77k | `97.4%` |
+| Completitud | % datos no nulos | `100.0%` |
+| Outliers | Valores atipicos (IQR) | `11,133` |
 
-Los KPIs se muestran al final del pipeline y se persisten en `data/metrics/pipeline_metrics.jsonl` (una línea por ejecución).
+Persistido en `data/metrics/pipeline_metrics.jsonl` (una linea por ejecucion).
 
 ```bash
 docker exec london_crime_app python apps/backend/cli/pipeline_dataops.py --demo
-# Al final muestra:
 # RESUMEN DE KPIs - PIPELINE DATAOPS
 #   Duracion total:  7.27 seg
 #   Registros:        150 -> 146 (2.7% reduccion)
@@ -283,55 +322,6 @@ docker exec london_crime_app python apps/backend/cli/pipeline_dataops.py --demo
 
 ---
 
-## Escalabilidad
+## Licencia
 
-### Pipeline
-- **Paralelización**: el pipeline puede dividirse por año o borough usando `concurrent.futures` para procesar lotes en paralelo.
-- **Incremental**: los datos nuevos se agregan por fecha sin reprocesar el histórico completo (carga upsert).
-
-### Base de datos (Supabase/PostgreSQL)
-- **Índices**: crear índices en `(year, borough)` para acelerar consultas del frontend.
-- **Particionamiento**: la tabla `london_crime_aggregated` puede particionarse por año.
-- **Connection pooling**: Supabase usa PgBouncer para manejar cientos de conexiones concurrentes.
-
-### Frontend
-- **Filtros**: selectores de distrito, categoría y año actualizan todos los gráficos y tablas en tiempo real.
-- **Caché**: implementar React Query o SWR para cachear respuestas de Supabase y evitar llamadas repetidas.
-- **Paginación**: en lugar de mostrar 100 registros, usar paginación server-side con `range()` de Supabase.
-- **CDN**: el build estático de Nginx puede servirse desde Cloudflare o cualquier CDN.
-
-### Infraestructura
-- **Réplicas**: Docker Compose soporta `deploy.replicas` para escalar horizontalmente el backend.
-- **Orquestación**: para producción, migrar a Kubernetes (GKE) con auto-escalado vertical y horizontal.
-- **Health checks**: agregar endpoint `/health` en el backend para que el orquestador monitoree disponibilidad.
-
-### Manejo de anomalías
-- **Reintentos**: el pipeline reintenta conexiones fallidas a Supabase/BigQuery con backoff exponencial.
-- **Validación**: los outliers se detectan pero no se eliminan automáticamente - se reportan para decisión del analista.
-- **Logs**: todos los errores se registran con timestamp y contexto para diagnóstico rápido.
-- **Alertas**: integrar con Slack o email cuando el pipeline falle o los KPIs estén fuera de rango esperado.
-
----
-
-## Requisitos
-
-- **Docker** y **Docker Compose** (para el stack completo)
-- **Node.js 20+** (solo para build local del frontend)
-- **Python 3.9+** (solo para desarrollo del backend fuera de Docker)
-- **Cuenta de Supabase** con tabla `london_crime_aggregated`
-- **(Opcional) Cuenta de GCP** con acceso a BigQuery
-
----
-
-## Notas de Mantenimiento
-
-- **node_modules** no se versiona. Si clonaste el repo y necesitas desarrollo local en frontend:
-  ```bash
-  cd apps/frontend && npm install
-  ```
-- **credentials.json** y **.env** están en `.gitignore` - nunca se suben al repo.
-- Para limpiar el entorno Docker:
-  ```bash
-  docker compose -f infra/docker-compose.yml down -v
-  ```
-
+Proyecto academico — Duoc UC.
