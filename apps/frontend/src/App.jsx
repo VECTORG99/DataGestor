@@ -43,8 +43,8 @@ const PIE_COLORS = [COLORS.primary, COLORS.secondary, COLORS.accent, COLORS.dang
 const CHART_DEFAULTS = { maxRotation: 45, maxTicksLimit: 20, tension: 0.3, pointRadius: 2, barMaxWidth: 500 };
 const TEXT = {
   loading: "Cargando...", missingEnv: "Faltan variables de entorno", dashboardTitle: "London Crime Dashboard",
-  totalCrimes: "Total Crímenes", leadingDistrict: "Distrito Líder", mainCategory: "Categoría Principal",
-  filteredRecords: "Registros Filtrados", filters: "Filtros", district: "Distrito", category: "Categoría",
+  cleanRecords: "Registros Limpios", leadingDistrict: "Distrito Líder", mainCategory: "Categoría Principal",
+  filters: "Filtros", district: "Distrito", category: "Categoría",
   year: "Año", all: "Todos", allF: "Todas", crimes: "Crímenes", borough: "Borough",
   crimesByDistrict: "Crímenes por Distrito", proportionByCategory: "Proporción por Categoría",
   temporalTrend: "Tendencia Temporal", topSubcategories: "Top 10 Subcategorías",
@@ -100,9 +100,8 @@ export default function App() {
         return;
       }
       // Supabase caps responses at 1000 rows per request,
-      // so we paginate in parallel batches.
+      // so we paginate sequentially with retry to avoid rate limits.
       const PAGE_SIZE = 1000;
-      const CONCURRENT = 10;
 
       // First, get total count and first page
       const { data: firstPage, count: totalCount, error: firstErr } = await supabase
@@ -123,21 +122,27 @@ export default function App() {
         ranges.push({ from, to: Math.min(from + PAGE_SIZE - 1, totalCount - 1) });
       }
 
-      // Fetch remaining pages in parallel batches
+      // Fetch remaining pages sequentially with retry
+      const MAX_RETRIES = 3;
+      async function fetchPage(from, to, attempt = 0) {
+        const { data, error } = await supabase
+          .from(TABLE_NAME)
+          .select("*")
+          .order("borough", { ascending: true })
+          .range(from, to);
+        if (error && attempt < MAX_RETRIES) {
+          await new Promise((r) => setTimeout(r, 1000 * (attempt + 1)));
+          return fetchPage(from, to, attempt + 1);
+        }
+        return data;
+      }
+
       let allRows = [firstPage];
-      for (let i = 0; i < ranges.length; i += CONCURRENT) {
-        const batch = ranges.slice(i, i + CONCURRENT);
-        const results = await Promise.all(
-          batch.map(({ from, to }) =>
-            supabase
-              .from(TABLE_NAME)
-              .select("*")
-              .order("borough", { ascending: true })
-              .range(from, to)
-              .then(({ data, error }) => error ? null : data)
-          )
-        );
-        allRows.push(...results.filter(Boolean));
+      // fetch in series instead of parallel to avoid Supabase rate limits
+      for (let i = 0; i < ranges.length; i += 1) {
+        const { from, to } = ranges[i];
+        const data = await fetchPage(from, to);
+        if (data) allRows.push(data);
       }
       setRows(allRows.flat());
       setLoading(false);
@@ -304,28 +309,25 @@ export default function App() {
       </Typography>
 
       <Grid container spacing={2} sx={{ mb: 4 }}>
-        <Grid item xs={12} sm={6} md={3}>
+        <Grid item xs={12} sm={6} md={4}>
           <Card><CardContent>
-            <Typography variant="body2" color="text.secondary">{TEXT.totalCrimes}</Typography>
-            <Typography variant="h4" fontWeight="bold">{totalCrimes.toLocaleString()}</Typography>
+            <Typography variant="body2" color="text.secondary">{TEXT.cleanRecords}</Typography>
+            <Typography variant="h4" fontWeight="bold">{rows.length.toLocaleString()}</Typography>
+            <Typography variant="caption" color="text.secondary">Post-ETL, pre-agregados por distrito/categoría/mes</Typography>
           </CardContent></Card>
         </Grid>
-        <Grid item xs={12} sm={6} md={3}>
+        <Grid item xs={12} sm={6} md={4}>
           <Card><CardContent>
             <Typography variant="body2" color="text.secondary">{TEXT.leadingDistrict}</Typography>
             <Typography variant="h4" fontWeight="bold">{topBorough ? topBorough[0] : "-"}</Typography>
+            <Typography variant="caption" color="text.secondary">{topBorough ? topBorough[1].toLocaleString() + " crímenes" : ""}</Typography>
           </CardContent></Card>
         </Grid>
-        <Grid item xs={12} sm={6} md={3}>
+        <Grid item xs={12} sm={6} md={4}>
           <Card><CardContent>
             <Typography variant="body2" color="text.secondary">{TEXT.mainCategory}</Typography>
             <Typography variant="h4" fontWeight="bold">{topCategory ? topCategory[0] : "-"}</Typography>
-          </CardContent></Card>
-        </Grid>
-        <Grid item xs={12} sm={6} md={3}>
-          <Card><CardContent>
-            <Typography variant="body2" color="text.secondary">{TEXT.filteredRecords}</Typography>
-            <Typography variant="h4" fontWeight="bold">{filtered.length.toLocaleString()}</Typography>
+            <Typography variant="caption" color="text.secondary">{topCategory ? topCategory[1].toLocaleString() + " crímenes" : ""}</Typography>
           </CardContent></Card>
         </Grid>
       </Grid>
