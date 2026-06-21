@@ -88,7 +88,8 @@ export default function App() {
       const { data, error } = await supabase
         .from(TABLE_NAME)
         .select("*")
-        .order("borough", { ascending: true });
+        .order("borough", { ascending: true })
+        .limit(100000);
       if (error) {
         setRows([]);
       } else {
