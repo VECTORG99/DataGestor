@@ -1,7 +1,7 @@
 import json
 import os
 from pathlib import Path
-from typing import Dict, List
+from typing import Dict, List, Union
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
@@ -123,7 +123,7 @@ SAMPLE_BOROUGHS_PATH = PROJECT_ROOT / "config" / "boroughs.json"
 SAMPLE_CATEGORIES_PATH = PROJECT_ROOT / "config" / "categories.json"
 
 
-def _load_json(path: Path) -> list | dict:
+def _load_json(path: Path) -> Union[list, dict]:
     with open(path, encoding="utf-8") as f:
         return json.load(f)
 

@@ -99,16 +99,51 @@ DataOps aporta agilidad y automatización al ciclo de datos; PMBOK entrega la es
 - CI/CD: Workflow de backend CI (black + flake8 + pytest).
 - Limpieza y mantenimiento: Scripts/indicaciones para limpiar nodos, dependencias y mantener el entorno reproducible.
 
+### 6. Pipeline de Machine Learning
+
+El proyecto incluye un pipeline de ML que entrena un modelo de **regresion lineal** (predecir `total_crimes`) y modelos de **clasificacion binaria** (Logistic Regression + Random Forest para `is_high_crime`) sobre los datos limpios.
+
+**Arquitectura:**
+
+```
+Dataset agregado (london_crime_aggregated)
+    |
+    ▼
+Preprocesamiento (one-hot encoding, StandardScaler, encoding ciclico)
+    |
+    ▼
+Train/Test Split (70/30, estratificado)
+    |
+    ├── Regresion Lineal → R², RMSE, MAE, residuales
+    └── Clasificacion     → Matriz confusion, ROC, Gini, F1, accuracy
+```
+
+**Resultados (16,609 registros, BigQuery):**
+
+| Modelo | Metrica | Valor |
+|--------|---------|-------|
+| Regresion Lineal | R² / RMSE | 0.39 / 11.29 |
+| Logistic Regression | Accuracy / AUC / Gini | 0.974 / 0.985 / **0.970** |
+| Random Forest | Accuracy / AUC / Gini | 0.974 / 0.987 / **0.974** |
+
+Detalle completo: [`docs/ml_pipeline.md`](docs/ml_pipeline.md)
+
+```bash
+docker exec london_crime_app python apps/backend/cli/ml_pipeline.py
+```
+
 ---
 
 ## Diagrama de Flujo Simplificado
 
 ```
-Dataset Bruto (BigQuery)
+Dataset Bruto (BigQuery 100k)
      |
 Ingesta y Limpieza (Python, Docker)
      |
-Carga a Supabase
+Carga a Supabase (PostgreSQL)
+     |
+Pipeline ML (Regresion + Clasificacion)
      |
 Consulta Frontend (React SPA)
      |
@@ -150,10 +185,11 @@ docker exec -it london_crime_app python apps/backend/cli/pipeline_dataops.py
 ```
 DataGestor/
 |-- apps/                   # Aplicaciones
-|   |-- backend/            # Codigo Python (pipeline ETL)
+|   |-- backend/            # Codigo Python (pipeline ETL + ML)
 |   |   |-- pipeline/       #   ingestion, cleaning, loading, metrics
-|   |   |-- cli/            #   pipeline_dataops.py (entrypoint)
-|   |   |-- tests/          #   test_pipeline_dataops.py
+|   |   |-- ml/             #   preprocessing, regression, classification
+|   |   |-- cli/            #   pipeline_dataops.py, ml_pipeline.py
+|   |   |-- tests/          #   test_*.py (38 tests total)
 |   |-- frontend/           # React SPA (Vite + Material UI + Chart.js)
 |       |-- src/            #   App.jsx, main.jsx
 |       |-- public/         #   Archivos estaticos
@@ -172,6 +208,8 @@ DataGestor/
 |   |-- backend.Dockerfile
 |   |-- frontend.Dockerfile
 |   |-- docker-compose.yml
+|-- docs/                   # Documentacion
+|   |-- ml_pipeline.md      # Pipeline de Machine Learning
 |-- .github/workflows/      # CI/CD
 |   |-- ci-backend.yml      # Lint + test del backend
 |-- requirements.txt
@@ -195,11 +233,16 @@ El backend CI ejecuta:
 
 Los tests unitarios cubren cada etapa del pipeline de limpieza:
 
-| Archivo | Tests |
-|---------|-------|
-| `tests/test_cleaning.py` | `standardize_column_names`, `handle_null_values`, `validate_data_types`, `validate_value_ranges`, `normalize_text_fields`, `detect_and_remove_duplicates`, `create_date_column`, `detect_outliers`, `remove_unnecessary_columns`, `clean_and_transform_data`, `validate_data_quality` |
-| `tests/test_loading.py` | `save_clean_data` (CSV + Parquet) |
-| `tests/test_pipeline_dataops.py` | Importación y entorno |
+Los tests unitarios cubren el pipeline ETL y el pipeline ML:
+
+| Archivo | Tests | Cantidad |
+|---------|-------|----------|
+| `tests/test_cleaning.py` | Estandarizacion, nulos, tipos, rangos, texto, duplicados, fecha, outliers, columnas, calidad | 21 |
+| `tests/test_loading.py` | `save_clean_data` (CSV + Parquet) | 2 |
+| `tests/test_ml.py` | Preprocessing, regresion, clasificacion | 12 |
+| `tests/test_pipeline_dataops.py` | Importacion y entorno | 2 |
+
+**Total: 38 tests**
 
 ### Ejecutar tests localmente
 
