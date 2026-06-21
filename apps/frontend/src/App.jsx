@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { createClient } from "@supabase/supabase-js";
+import * as XLSX from "xlsx";
 import Container from "@mui/material/Container";
 import Grid from "@mui/material/Grid";
 import Paper from "@mui/material/Paper";
@@ -14,10 +15,13 @@ import Card from "@mui/material/Card";
 import CardContent from "@mui/material/CardContent";
 import Alert from "@mui/material/Alert";
 import Box from "@mui/material/Box";
+import Button from "@mui/material/Button";
+import CircularProgress from "@mui/material/CircularProgress";
 import FormControl from "@mui/material/FormControl";
 import InputLabel from "@mui/material/InputLabel";
 import Select from "@mui/material/Select";
 import MenuItem from "@mui/material/MenuItem";
+import FileDownloadIcon from "@mui/icons-material/FileDownload";
 
 import { Bar, Pie, Line } from "react-chartjs-2";
 import {
@@ -46,6 +50,14 @@ const TEXT = {
   temporalTrend: "Tendencia Temporal", topSubcategories: "Top 10 Subcategorías",
   crimesByDistrictAndYear: "Crímenes por Distrito y Año",
   detailedData: "Datos Detallados", noFilteredData: "No hay datos con los filtros seleccionados.",
+  exportFiltered: "Exportar Datos Filtrados",
+  exportAggregated: "Exportar Datos Agregados",
+  exportComplete: "Exportar Dataset Completo",
+  exporting: "Exportando...",
+  dataAggregated: "Datos Agregados",
+  crimesByBoroughTable: "Crímenes por Distrito",
+  top10Subcategories: "Top 10 Subcategorías",
+  temporalTrendTable: "Tendencia Temporal (Mes a Mes)",
 };
 
 ChartJS.register(
@@ -77,6 +89,7 @@ export default function App() {
   const [filterCategory, setFilterCategory] = useState("");
   const [filterYear, setFilterYear] = useState("");
   const [mlMetrics, setMlMetrics] = useState(null);
+  const [exporting, setExporting] = useState(false);
 
   useEffect(() => {
     async function fetchRows() {
@@ -197,6 +210,93 @@ export default function App() {
 
   const columns = rows[0] ? Object.keys(rows[0]) : [];
 
+  // Export Functions
+  const exportToExcelFiltered = async () => {
+    setExporting(true);
+    try {
+      const wb = XLSX.utils.book_new();
+      const wsData = filtered.map((row) => ({
+        "Borough": row.borough,
+        "Major Category": row.major_category,
+        "Minor Category": row.minor_category,
+        "Year": row.year,
+        "Month": row.month,
+        "Total Crimes": row.total_crimes,
+        "Date": row.date || "",
+      }));
+      const ws = XLSX.utils.json_to_sheet(wsData);
+      XLSX.utils.book_append_sheet(wb, ws, "Datos Filtrados");
+      XLSX.writeFile(wb, `london_crime_filtered_${new Date().toISOString().split('T')[0]}.xlsx`);
+    } catch (error) {
+      console.error("Error exporting filtered data:", error);
+      alert("Error al exportar datos filtrados");
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  const exportToExcelAggregated = async () => {
+    setExporting(true);
+    try {
+      const wb = XLSX.utils.book_new();
+
+      // Sheet 1: Crímenes por Distrito
+      const boroughData = Object.entries(boroughTotals).map(([name, value]) => ({
+        "Borough": name,
+        "Total Crimes": value,
+      }));
+      const wsBoroughs = XLSX.utils.json_to_sheet(boroughData);
+      XLSX.utils.book_append_sheet(wb, wsBoroughs, TEXT.crimesByBoroughTable);
+
+      // Sheet 2: Top 10 Subcategorías
+      const topMinorData = topMinor.map(([category, count]) => ({
+        "Minor Category": category,
+        "Total Crimes": count,
+      }));
+      const wsTopMinor = XLSX.utils.json_to_sheet(topMinorData);
+      XLSX.utils.book_append_sheet(wb, wsTopMinor, TEXT.top10Subcategories);
+
+      // Sheet 3: Tendencia Temporal
+      const trendData = trendChart.map((item) => ({
+        "Date": item.date,
+        "Total Crimes": item.crimenes,
+      }));
+      const wsTrend = XLSX.utils.json_to_sheet(trendData);
+      XLSX.utils.book_append_sheet(wb, wsTrend, TEXT.temporalTrendTable);
+
+      XLSX.writeFile(wb, `london_crime_aggregated_${new Date().toISOString().split('T')[0]}.xlsx`);
+    } catch (error) {
+      console.error("Error exporting aggregated data:", error);
+      alert("Error al exportar datos agregados");
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  const exportToExcelComplete = async () => {
+    setExporting(true);
+    try {
+      const wb = XLSX.utils.book_new();
+      const wsData = rows.map((row) => ({
+        "Borough": row.borough,
+        "Major Category": row.major_category,
+        "Minor Category": row.minor_category,
+        "Year": row.year,
+        "Month": row.month,
+        "Total Crimes": row.total_crimes,
+        "Date": row.date || "",
+      }));
+      const ws = XLSX.utils.json_to_sheet(wsData);
+      XLSX.utils.book_append_sheet(wb, ws, "Dataset Completo");
+      XLSX.writeFile(wb, `london_crime_complete_${new Date().toISOString().split('T')[0]}.xlsx`);
+    } catch (error) {
+      console.error("Error exporting complete data:", error);
+      alert("Error al exportar dataset completo");
+    } finally {
+      setExporting(false);
+    }
+  };
+
   return (
     <Container maxWidth="xl" sx={{ py: 4, px: { xs: 1, sm: 2, md: 3 } }}>
       <Typography variant="h4" fontWeight="bold" gutterBottom align="center">
@@ -263,6 +363,40 @@ export default function App() {
             </FormControl>
           </Grid>
         </Grid>
+
+        {/* Export Buttons */}
+        <Box sx={{ mt: 3, display: "flex", gap: 2, justifyContent: "center", flexWrap: "wrap" }}>
+          <Button
+            variant="contained"
+            color="primary"
+            startIcon={exporting ? <CircularProgress size={20} /> : <FileDownloadIcon />}
+            onClick={exportToExcelFiltered}
+            disabled={filtered.length === 0 || exporting}
+            size="small"
+          >
+            {exporting ? TEXT.exporting : TEXT.exportFiltered}
+          </Button>
+          <Button
+            variant="contained"
+            color="secondary"
+            startIcon={exporting ? <CircularProgress size={20} /> : <FileDownloadIcon />}
+            onClick={exportToExcelAggregated}
+            disabled={rows.length === 0 || exporting}
+            size="small"
+          >
+            {exporting ? TEXT.exporting : TEXT.exportAggregated}
+          </Button>
+          <Button
+            variant="contained"
+            color="warning"
+            startIcon={exporting ? <CircularProgress size={20} /> : <FileDownloadIcon />}
+            onClick={exportToExcelComplete}
+            disabled={rows.length === 0 || exporting}
+            size="small"
+          >
+            {exporting ? TEXT.exporting : TEXT.exportComplete}
+          </Button>
+        </Box>
       </Paper>
 
       <Paper sx={{ p: 2, mb: 4 }}>
@@ -374,26 +508,40 @@ export default function App() {
       {filtered.length === 0 ? (
         <Alert severity="info">{TEXT.noFilteredData}</Alert>
       ) : (
-        <TableContainer component={Paper}>
-          <Table size="small">
-            <TableHead>
-              <TableRow>
-                {columns.map((col) => (
-                  <TableCell key={col} sx={{ fontWeight: "bold" }}>{col}</TableCell>
-                ))}
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {filtered.slice(0, 100).map((row, idx) => (
-                <TableRow key={idx}>
+        <>
+          <Box sx={{ mb: 2, display: "flex", justifyContent: "flex-end" }}>
+            <Button
+              variant="outlined"
+              color="primary"
+              startIcon={exporting ? <CircularProgress size={20} /> : <FileDownloadIcon />}
+              onClick={exportToExcelFiltered}
+              disabled={exporting}
+              size="small"
+            >
+              {exporting ? TEXT.exporting : TEXT.exportFiltered}
+            </Button>
+          </Box>
+          <TableContainer component={Paper}>
+            <Table size="small">
+              <TableHead>
+                <TableRow>
                   {columns.map((col) => (
-                    <TableCell key={col}>{row[col] != null ? String(row[col]) : "-"}</TableCell>
+                    <TableCell key={col} sx={{ fontWeight: "bold" }}>{col}</TableCell>
                   ))}
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </TableContainer>
+              </TableHead>
+              <TableBody>
+                {filtered.slice(0, 100).map((row, idx) => (
+                  <TableRow key={idx}>
+                    {columns.map((col) => (
+                      <TableCell key={col}>{row[col] != null ? String(row[col]) : "-"}</TableCell>
+                    ))}
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </TableContainer>
+        </>
       )}
 
       {/* ML Insights Section */}

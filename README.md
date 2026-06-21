@@ -59,6 +59,7 @@ BigQuery Public Dataset               Google Cloud
 | **Pipeline ETL** | Python (pandas, SQLAlchemy) | Ingesta, limpieza, agregacion, carga a Supabase |
 | **Base de datos** | Supabase (PostgreSQL) | Almacenamiento de 77,524 registros agregados |
 | **Frontend** | React 19 + Vite 8 + MUI 9 | Dashboard interactivo desplegado en Vercel |
+| **Excel Export** | SheetJS (xlsx) + Material-UI Icons | Exportación de datos a Excel en 3 formatos |
 | **ML** | scikit-learn (LogisticRegression) | Clasificacion binaria de criminalidad |
 | **CI/CD** | GitHub Actions | Lint + tests automaticos en cada push |
 
@@ -81,14 +82,41 @@ https://data-gestor.vercel.app/
 | Seccion | Descripcion |
 |---|---|
 | **KPIs** | Total crimenes (1.3M+), distrito lider, categoria principal, registros filtrados |
-| **Filtros** | Selectores de distrito (33), categoria (8), ano (2008-2016) |
+| **Filtros** | Selectores de distrito (33), categoria (8), ano (2008-2016) + 3 botones de exportacion |
+| **Exportacion a Excel** | Descargar datos filtrados, datos agregados (3 hojas), o dataset completo (77k+ registros) |
 | **Crimenes por Distrito** | Grafico de barras con totales por borough |
 | **Proporcion por Categoria** | Grafico donut con distribucion por tipo de crimen |
 | **Tendencia Temporal** | Linea temporal mes a mes (96 puntos) |
 | **Top 10 Subcategorias** | Barras horizontales con las subcategorias mas frecuentes |
 | **Crimenes por Distrito y Ano** | Tabla heatmap (33 boroughs x 9 anos) |
-| **Datos Detallados** | Tabla con los primeros 100 registros filtrados |
+| **Datos Detallados** | Tabla con los primeros 100 registros filtrados + boton de exportacion |
 | **ML Insights** | Metricas del modelo, matriz de confusion, curva ROC |
+
+### Exportacion de Datos
+
+Se agregó funcionalidad de exportación a Excel con tres opciones:
+
+#### 1. **Exportar Datos Filtrados** 📥
+- Descarga solo los registros que coinciden con los filtros activos
+- Respeta: Borough, Categoría, Año
+- Columnas: Borough, Major Category, Minor Category, Year, Month, Total Crimes, Date
+- Archivo: `london_crime_filtered_YYYY-MM-DD.xlsx`
+
+#### 2. **Exportar Datos Agregados** 📊
+- Descarga un Excel con 3 hojas:
+  - **Crímenes por Distrito**: Totales por borough
+  - **Top 10 Subcategorías**: Las 10 categorías menores más frecuentes
+  - **Tendencia Temporal**: Datos mes a mes
+- Archivo: `london_crime_aggregated_YYYY-MM-DD.xlsx`
+
+#### 3. **Exportar Dataset Completo** 📦
+- Descarga todos los 77,524 registros
+- Ignora los filtros aplicados
+- Archivo: `london_crime_complete_YYYY-MM-DD.xlsx` (~5-7 MB)
+
+**Dependencias:**
+- `xlsx` (SheetJS Community Edition) — Exportación a Excel
+- `@mui/icons-material` — Icono de descarga
 
 ---
 
@@ -225,6 +253,9 @@ cd apps/frontend
 npm install
 npm run dev
 # Abrir http://localhost:5173
+# Los botones de exportacion a Excel estarán disponibles en:
+#   - Seccion de filtros (3 opciones)
+#   - Seccion de Datos Detallados (exportar filtrados)
 
 # 4. Pipeline ETL (via Docker)
 cd ../..
