@@ -63,10 +63,10 @@ def main():
     logreg = train_logistic_regression(X_train_t, y_train)
     metrics = evaluate_classification(logreg, X_test_t, y_test, "LogisticRegression")
     y_proba = logreg.predict_proba(X_test_t)[:, 1]
-    plot_confusion_matrix(y_test, logreg.predict(X_test_t),
-                          save_path=str(METRICS_DIR / "confusion_matrix.png"))
-    plot_roc_curve(y_test, y_proba,
-                   save_path=str(METRICS_DIR / "roc_curve.png"))
+    plot_confusion_matrix(
+        y_test, logreg.predict(X_test_t), save_path=str(METRICS_DIR / "confusion_matrix.png")
+    )
+    plot_roc_curve(y_test, y_proba, save_path=str(METRICS_DIR / "roc_curve.png"))
     save_classification_model(logreg, path=str(MODELS_DIR / "logistic_regression.joblib"))
 
     # ---- Save metrics ----
