@@ -85,16 +85,47 @@ export default function App() {
         setLoading(false);
         return;
       }
-      const { data, error } = await supabase
+      // Supabase caps responses at 1000 rows per request,
+      // so we paginate in parallel batches.
+      const PAGE_SIZE = 1000;
+      const CONCURRENT = 10;
+
+      // First, get total count and first page
+      const { data: firstPage, count: totalCount, error: firstErr } = await supabase
         .from(TABLE_NAME)
-        .select("*")
+        .select("*", { count: "exact", head: false })
         .order("borough", { ascending: true })
-        .limit(100000);
-      if (error) {
-        setRows([]);
-      } else {
-        setRows(data || []);
+        .range(0, PAGE_SIZE - 1);
+      if (firstErr) { setRows([]); setLoading(false); return; }
+      if (!firstPage || firstPage.length < PAGE_SIZE || !totalCount) {
+        setRows(firstPage || []);
+        setLoading(false);
+        return;
       }
+
+      // Build range requests for remaining pages
+      const ranges = [];
+      for (let from = PAGE_SIZE; from < totalCount; from += PAGE_SIZE) {
+        ranges.push({ from, to: Math.min(from + PAGE_SIZE - 1, totalCount - 1) });
+      }
+
+      // Fetch remaining pages in parallel batches
+      let allRows = [firstPage];
+      for (let i = 0; i < ranges.length; i += CONCURRENT) {
+        const batch = ranges.slice(i, i + CONCURRENT);
+        const results = await Promise.all(
+          batch.map(({ from, to }) =>
+            supabase
+              .from(TABLE_NAME)
+              .select("*")
+              .order("borough", { ascending: true })
+              .range(from, to)
+              .then(({ data, error }) => error ? null : data)
+          )
+        );
+        allRows.push(...results.filter(Boolean));
+      }
+      setRows(allRows.flat());
       setLoading(false);
     }
     fetchRows();
