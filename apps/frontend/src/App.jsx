@@ -76,6 +76,7 @@ const TABLE_NAME = import.meta.env.VITE_SUPABASE_TABLE_NAME || "london_crime_agg
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 const supabase = createClient(supabaseUrl || "", supabaseKey || "");
+const ML_API_URL = import.meta.env.VITE_ML_API_URL || "http://localhost:8000";
 
 function groupBy(arr, key) {
   return arr.reduce((acc, row) => {
@@ -885,7 +886,7 @@ export default function App() {
                 setPredError(null);
                 setPredResult(null);
                 try {
-                  const resp = await fetch("http://localhost:8000/predict", {
+                  const resp = await fetch(ML_API_URL + "/predict", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({

@@ -17,8 +17,15 @@ credentials/
 .docker/
 docker-compose.override.yml
 
-# Data outputs
-data/
+# Data outputs (except processed csv + trained models)
+data/*
+!data/processed/
+data/processed/*
+!data/processed/london_crime_aggregated.csv
+!data/models/
+data/models/*
+!data/models/logistic_regression.joblib
+!data/models/preprocessor.joblib
 
 # IDE e Interfaz
 .vscode/

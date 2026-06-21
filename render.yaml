@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: datagestor-ml-api
+    env: docker
+    repo: https://github.com/VECTORG99/DataGestor
+    plan: free
+    region: frankfurt
+    healthCheckPath: /health
+    envVars:
+      - key: PORT
+        value: 8000
