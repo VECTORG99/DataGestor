@@ -454,6 +454,7 @@ export default function App() {
                 <Tabs value={dashboardTab} onChange={(_, value) => setDashboardTab(value)} variant="scrollable" scrollButtons="auto" aria-label="Subpáginas dashboard">
                   <Tab value="summary" label="Resumen DataOps" />
                   <Tab value="logs" label="Logs" />
+                  <Tab value="charts" label="Filtros y gráficos" />
                 </Tabs>
               </Paper>
 
@@ -697,6 +698,7 @@ export default function App() {
       </Paper>
               </Box>
 
+              <Box sx={{ display: dashboardTab === "charts" ? "block" : "none" }}>
       <Paper sx={{ p: { xs: 1.5, sm: 2 }, mb: 4 }}>
         <Typography variant="subtitle1" fontWeight="bold" gutterBottom align="center">
           {TEXT.filters}
@@ -886,6 +888,7 @@ export default function App() {
         </Box>
       </Paper>
       </Box>
+              </Box>
 
             </Box>
 
