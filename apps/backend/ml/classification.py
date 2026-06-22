@@ -9,11 +9,14 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 from sklearn.linear_model import LogisticRegression
+from sklearn.ensemble import RandomForestRegressor
 from sklearn.metrics import (
     accuracy_score,
     auc,
     confusion_matrix,
     f1_score,
+    mean_absolute_error,
+    r2_score,
     precision_score,
     recall_score,
     roc_curve,
@@ -28,6 +31,23 @@ def train_logistic_regression(X_train, y_train, max_iter=1000):
     model.fit(X_train, y_train)
     logging.info("[ML] Logistic Regression entrenada.")
     return model
+
+
+def train_crime_regressor(X_train, y_train):
+    """Train a small regressor to estimate monthly crime count."""
+    model = RandomForestRegressor(n_estimators=80, min_samples_leaf=3, random_state=42, n_jobs=-1)
+    model.fit(X_train, y_train)
+    logging.info("[ML] Crime count regressor entrenado.")
+    return model
+
+
+def evaluate_regression(model, X_test, y_test) -> dict:
+    """Evaluate count regression."""
+    y_pred = model.predict(X_test)
+    return {
+        "mae": round(mean_absolute_error(y_test, y_pred), 4),
+        "r2": round(r2_score(y_test, y_pred), 4),
+    }
 
 
 def evaluate_classification(model, X_test, y_test, model_name: str = "model") -> dict:

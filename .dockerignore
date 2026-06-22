@@ -1,7 +1,10 @@
 node_modules
+**/node_modules
+**/dist
 .git
 .venv
 **/.venv
+.agent-screenshots
 __pycache__
 *.pyc
 .env
@@ -12,5 +15,6 @@ data/processed/*
 !data/processed/london_crime_aggregated.csv
 !data/models/
 data/models/*
+data/models/crime_regressor.joblib
 !data/models/logistic_regression.joblib
 !data/models/preprocessor.joblib

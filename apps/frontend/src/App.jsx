@@ -824,10 +824,10 @@ export default function App() {
       {/* Interactive Predictor */}
       <Paper sx={{ p: 2, mb: 4 }}>
         <Typography variant="h6" gutterBottom fontWeight="bold">
-          Predictor Interactivo — ¿Alta o Baja Criminalidad?
+          Predictor Interactivo — Delitos Estimados e Incidencia
         </Typography>
         <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-          Selecciona distrito, categoría, mes y año para predecir si la incidencia será alta o baja.
+          Selecciona distrito, categoría, mes y año para estimar delitos mensuales y clasificar la incidencia.
         </Typography>
 
         <Grid container spacing={2} alignItems="flex-end">
@@ -914,6 +914,10 @@ export default function App() {
         {/* Prediction result */}
         {predResult && (
           <Box sx={{ mt: 2, p: 2, bgcolor: predResult.prediction === 1 ? "#ffebee" : "#e8f5e9", borderRadius: 1 }}>
+            <Typography variant="caption" color="text.secondary">Delitos estimados</Typography>
+            <Typography variant="h4" fontWeight="bold">
+              {predResult.predicted_crimes} delitos
+            </Typography>
             <Typography variant="h5" fontWeight="bold" sx={{ color: predResult.prediction === 1 ? COLORS.danger : COLORS.secondary }}>
               {predResult.prediction === 1 ? "ALTA INCIDENCIA" : "BAJA INCIDENCIA"}
             </Typography>
@@ -931,6 +935,10 @@ export default function App() {
                 <Typography variant="h6" fontWeight="bold">{predResult.features_used}</Typography>
               </Box>
             </Box>
+            <Alert severity="info" sx={{ mt: 2 }}>
+              La estimación de delitos usa un modelo de regresión. Alta/Baja es una clasificación aparte:
+              Alta significa que el caso supera la mediana histórica global del dataset, que es 3 delitos mensuales.
+            </Alert>
             {/* Probability bar */}
             <Box sx={{ mt: 1, width: "100%", bgcolor: "#e0e0e0", borderRadius: 1, height: 20, position: "relative", overflow: "hidden" }}>
               <Box sx={{ width: `${(predResult.probability_high * 100).toFixed(1)}%`, bgcolor: COLORS.danger, height: "100%", transition: "width 0.5s" }} />

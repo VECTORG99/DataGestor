@@ -22,17 +22,20 @@ app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], all
 # Lazy-load model + preprocessor
 _model = None
 _preprocessor = None
+_regressor = None
 
 
 def _load_artifacts():
-    global _model, _preprocessor
+    global _model, _preprocessor, _regressor
     model_path = MODELS_DIR / "logistic_regression.joblib"
+    regressor_path = MODELS_DIR / "crime_regressor.joblib"
     prep_path = MODELS_DIR / "preprocessor.joblib"
-    if not model_path.exists() or not prep_path.exists():
+    if not model_path.exists() or not prep_path.exists() or not regressor_path.exists():
         raise RuntimeError(
-            "Model or preprocessor not found. Run `python apps/backend/cli/ml_pipeline.py` first."
+            "Model artifacts not found. Run `python apps/backend/cli/ml_pipeline.py` first."
         )
     _model = joblib.load(model_path)
+    _regressor = joblib.load(regressor_path)
     _preprocessor = joblib.load(prep_path)
 
 
@@ -48,6 +51,8 @@ class PredictOutput(BaseModel):
     prediction: int  # 0 = bajo, 1 = alto
     probability_high: float
     probability_low: float
+    predicted_crimes: int
+    predicted_crimes_raw: float
     threshold: float
     features_used: int
 
@@ -60,7 +65,7 @@ def health():
 @app.post("/predict", response_model=PredictOutput)
 def predict(input_data: PredictInput):
     try:
-        if _model is None or _preprocessor is None:
+        if _model is None or _preprocessor is None or _regressor is None:
             _load_artifacts()
     except RuntimeError as e:
         raise HTTPException(status_code=503, detail=str(e))
@@ -90,6 +95,7 @@ def predict(input_data: PredictInput):
 
     pred = int(_model.predict(X_t)[0])
     proba = _model.predict_proba(X_t)[0]
+    predicted_crimes_raw = max(0.0, float(_regressor.predict(X_t)[0]))
     prob_low = round(float(proba[0]), 4)
     prob_high = round(float(proba[1]), 4)
 
@@ -97,6 +103,8 @@ def predict(input_data: PredictInput):
         prediction=pred,
         probability_high=prob_high,
         probability_low=prob_low,
+        predicted_crimes=round(predicted_crimes_raw),
+        predicted_crimes_raw=round(predicted_crimes_raw, 2),
         threshold=0.5,
         features_used=X_t.shape[1],
     )

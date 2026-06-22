@@ -121,3 +121,22 @@ class TestClassification:
             assert key in metrics, f"Missing metric: {key}"
         assert len(metrics["confusion_matrix"]) == 2
         assert len(metrics["confusion_matrix"][0]) == 2
+
+    def test_train_crime_regressor(self, sample_df):
+        from apps.backend.ml.preprocessing import build_preprocessor, prepare_features
+        from apps.backend.ml.classification import evaluate_regression, train_crime_regressor
+
+        X = prepare_features(sample_df)
+        y = sample_df["total_crimes"].values
+        preprocessor = build_preprocessor(
+            ["borough", "major_category", "minor_category"],
+            ["year", "month_sin", "month_cos"],
+        )
+        X_t = preprocessor.fit_transform(X)
+        model = train_crime_regressor(X_t[:40], y[:40])
+        pred = model.predict(X_t[40:])
+        metrics = evaluate_regression(model, X_t[40:], y[40:])
+
+        assert len(pred) == 10
+        assert "mae" in metrics
+        assert "r2" in metrics

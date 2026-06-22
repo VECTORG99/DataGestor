@@ -21,9 +21,11 @@ if str(PROJECT_ROOT) not in sys.path:
 from apps.backend.ml.preprocessing import load_clean_data, preprocess_and_split
 from apps.backend.ml.classification import (
     evaluate_classification,
+    evaluate_regression,
     plot_confusion_matrix,
     plot_roc_curve,
     save_classification_model,
+    train_crime_regressor,
     train_logistic_regression,
 )
 
@@ -73,6 +75,14 @@ def main():
     # Save fitted preprocessor for inference API
     joblib.dump(pre, MODELS_DIR / "preprocessor.joblib")
     logging.info(f"[ML] Preprocesador guardado en {MODELS_DIR / 'preprocessor.joblib'}")
+
+    y_count_train = df.loc[X_train.index, "total_crimes"].values
+    y_count_test = df.loc[X_test.index, "total_crimes"].values
+    regressor = train_crime_regressor(X_train_t, y_count_train)
+    regression_metrics = evaluate_regression(regressor, X_test_t, y_count_test)
+    joblib.dump(regressor, MODELS_DIR / "crime_regressor.joblib")
+    logging.info(f"[ML] Regresor guardado en {MODELS_DIR / 'crime_regressor.joblib'}")
+    metrics["regression"] = regression_metrics
 
     # ---- Save metrics ----
     with open(METRICS_DIR / "ml_metrics.json", "w") as f:
