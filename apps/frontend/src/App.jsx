@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
 import { createClient } from "@supabase/supabase-js";
-import * as XLSX from "xlsx";
 import Container from "@mui/material/Container";
 import Grid from "@mui/material/Grid";
 import Paper from "@mui/material/Paper";
@@ -32,7 +31,8 @@ import Toolbar from "@mui/material/Toolbar";
 import List from "@mui/material/List";
 import ListItemButton from "@mui/material/ListItemButton";
 import Divider from "@mui/material/Divider";
-import Switch from "@mui/material/Switch";
+import Tabs from "@mui/material/Tabs";
+import Tab from "@mui/material/Tab";
 import { createTheme, ThemeProvider } from "@mui/material/styles";
 import CssBaseline from "@mui/material/CssBaseline";
 import FileDownloadIcon from "@mui/icons-material/FileDownload";
@@ -57,7 +57,7 @@ import {
 
 const COLORS = { primary: "#1976d2", secondary: "#388e3c", accent: "#f57c00", danger: "#d32f2f", purple: "#7b1fa2", teal: "#00796b", pink: "#c2185b", deepPurple: "#512da8", orange: "#e64a19" };
 const SURFACE_COLORS = {
-  raw: "#9e9e9e", darkBg: "#0f172a", darkPaper: "#111827", header: "#f5f5f5", card: "#fafafa",
+  raw: "#9e9e9e", appBg: "#f4f7fb", header: "#f5f5f5", card: "#fafafa", hero: "#eef5ff",
   terminalBg: "#1a1a2e", terminalOk: "#00ff88", terminalWarn: "#ffaa00", terminalDim: "#888", terminalText: "#ccc",
   successSoft: "#e8f5e9", dangerSoft: "#ffebee", probabilityBg: "#e0e0e0",
 };
@@ -72,6 +72,14 @@ const NAV_ITEMS = [
   { id: "data", label: "Datos" },
   { id: "ml", label: "ML Insights" },
 ];
+const CHART_TABS = [
+  { id: "overview", label: "Resumen" },
+  { id: "borough", label: "Distritos" },
+  { id: "category", label: "Categorías" },
+  { id: "trend", label: "Temporal" },
+  { id: "minor", label: "Subcategorías" },
+  { id: "matrix", label: "Año/Distrito" },
+];
 const TEXT = {
   loading: "Cargando...", missingEnv: "Faltan variables de entorno", dashboardTitle: "London Crime Dashboard",
   cleanRecords: "Registros Limpios", leadingDistrict: "Distrito Líder", mainCategory: "Categoría Principal",
@@ -81,9 +89,9 @@ const TEXT = {
   temporalTrend: "Tendencia Temporal", topSubcategories: "Top 10 Subcategorías",
   crimesByDistrictAndYear: "Crímenes por Distrito y Año",
   detailedData: "Datos Detallados", noFilteredData: "No hay datos con los filtros seleccionados.",
-  exportFiltered: "Exportar Datos Filtrados",
-  exportAggregated: "Exportar Datos Agregados",
-  exportComplete: "Exportar Dataset Completo",
+  exportFiltered: "Exportar CSV Filtrado",
+  exportAggregated: "Exportar CSV Agregado",
+  exportComplete: "Exportar CSV Completo",
   exporting: "Exportando...",
   dataAggregated: "Datos Agregados",
   crimesByBoroughTable: "Crímenes por Distrito",
@@ -114,6 +122,19 @@ function sortedEntries(obj) {
   return Object.entries(obj).sort((a, b) => b[1] - a[1]);
 }
 
+function exportCsv(filename, records) {
+  if (!records.length) return;
+  const headers = Object.keys(records[0]);
+  const escape = (value) => `"${String(value ?? "").replace(/"/g, '""')}"`;
+  const csv = [headers.join(","), ...records.map((row) => headers.map((h) => escape(row[h])).join(","))].join("\n");
+  const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
 export default function App() {
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -126,7 +147,7 @@ export default function App() {
   const [logsOpen, setLogsOpen] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [activePage, setActivePage] = useState("dashboard");
-  const [darkMode, setDarkMode] = useState(true);
+  const [chartTab, setChartTab] = useState("overview");
   const [tablePage, setTablePage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(INITIAL_DETAIL_ROWS);
   const [toast, setToast] = useState(null);
@@ -145,17 +166,17 @@ export default function App() {
 
   const theme = useMemo(() => createTheme({
     palette: {
-      mode: darkMode ? "dark" : "light",
+      mode: "light",
       primary: { main: COLORS.primary },
       secondary: { main: COLORS.secondary },
-      background: darkMode ? { default: SURFACE_COLORS.darkBg, paper: SURFACE_COLORS.darkPaper } : undefined,
+      background: { default: SURFACE_COLORS.appBg, paper: "#fff" },
     },
     shape: { borderRadius: 10 },
     components: {
-      MuiCard: { styleOverrides: { root: { boxShadow: darkMode ? "0 10px 30px rgba(0,0,0,.24)" : "0 8px 24px rgba(15,23,42,.08)" } } },
+      MuiCard: { styleOverrides: { root: { boxShadow: "0 8px 24px rgba(15,23,42,.08)", transition: "transform .15s ease, box-shadow .15s ease", "&:hover": { transform: "translateY(-2px)", boxShadow: "0 14px 30px rgba(15,23,42,.12)" } } } },
       MuiPaper: { styleOverrides: { root: { backgroundImage: "none" } } },
     },
-  }), [darkMode]);
+  }), []);
 
   useEffect(() => {
     async function fetchRows() {
@@ -300,7 +321,6 @@ export default function App() {
   const exportToExcelFiltered = async () => {
     setExporting(true);
     try {
-      const wb = XLSX.utils.book_new();
       const wsData = filtered.map((row) => ({
         "Borough": row.borough,
         "Major Category": row.major_category,
@@ -310,9 +330,7 @@ export default function App() {
         "Total Crimes": row.total_crimes,
         "Date": row.date || "",
       }));
-      const ws = XLSX.utils.json_to_sheet(wsData);
-      XLSX.utils.book_append_sheet(wb, ws, "Datos Filtrados");
-      XLSX.writeFile(wb, `london_crime_filtered_${new Date().toISOString().split('T')[0]}.xlsx`);
+      exportCsv(`london_crime_filtered_${new Date().toISOString().split('T')[0]}.csv`, wsData);
     } catch (error) {
       console.error("Error exporting filtered data:", error);
       notify("Error al exportar datos filtrados");
@@ -324,33 +342,31 @@ export default function App() {
   const exportToExcelAggregated = async () => {
     setExporting(true);
     try {
-      const wb = XLSX.utils.book_new();
-
-      // Sheet 1: Crímenes por Distrito
       const boroughData = Object.entries(boroughTotals).map(([name, value]) => ({
+        "Type": TEXT.crimesByBoroughTable,
         "Borough": name,
+        "Minor Category": "",
+        "Date": "",
         "Total Crimes": value,
       }));
-      const wsBoroughs = XLSX.utils.json_to_sheet(boroughData);
-      XLSX.utils.book_append_sheet(wb, wsBoroughs, TEXT.crimesByBoroughTable);
 
-      // Sheet 2: Top 10 Subcategorías
       const topMinorData = topMinor.map(([category, count]) => ({
+        "Type": TEXT.top10Subcategories,
+        "Borough": "",
         "Minor Category": category,
+        "Date": "",
         "Total Crimes": count,
       }));
-      const wsTopMinor = XLSX.utils.json_to_sheet(topMinorData);
-      XLSX.utils.book_append_sheet(wb, wsTopMinor, TEXT.top10Subcategories);
 
-      // Sheet 3: Tendencia Temporal
       const trendData = trendChart.map((item) => ({
+        "Type": TEXT.temporalTrendTable,
+        "Borough": "",
+        "Minor Category": "",
         "Date": item.date,
         "Total Crimes": item.crimenes,
       }));
-      const wsTrend = XLSX.utils.json_to_sheet(trendData);
-      XLSX.utils.book_append_sheet(wb, wsTrend, TEXT.temporalTrendTable);
 
-      XLSX.writeFile(wb, `london_crime_aggregated_${new Date().toISOString().split('T')[0]}.xlsx`);
+      exportCsv(`london_crime_aggregated_${new Date().toISOString().split('T')[0]}.csv`, [...boroughData, ...topMinorData, ...trendData]);
     } catch (error) {
       console.error("Error exporting aggregated data:", error);
       notify("Error al exportar datos agregados");
@@ -362,7 +378,6 @@ export default function App() {
   const exportToExcelComplete = async () => {
     setExporting(true);
     try {
-      const wb = XLSX.utils.book_new();
       const wsData = rows.map((row) => ({
         "Borough": row.borough,
         "Major Category": row.major_category,
@@ -372,9 +387,7 @@ export default function App() {
         "Total Crimes": row.total_crimes,
         "Date": row.date || "",
       }));
-      const ws = XLSX.utils.json_to_sheet(wsData);
-      XLSX.utils.book_append_sheet(wb, ws, "Dataset Completo");
-      XLSX.writeFile(wb, `london_crime_complete_${new Date().toISOString().split('T')[0]}.xlsx`);
+      exportCsv(`london_crime_complete_${new Date().toISOString().split('T')[0]}.csv`, wsData);
     } catch (error) {
       console.error("Error exporting complete data:", error);
       notify("Error al exportar dataset completo");
@@ -387,11 +400,10 @@ export default function App() {
     <ThemeProvider theme={theme}>
       <CssBaseline />
       <Box sx={{ display: "flex", minHeight: "100vh", bgcolor: "background.default" }}>
-        <AppBar position="fixed" sx={{ width: { md: `calc(100% - ${DRAWER_WIDTH}px)` }, ml: { md: `${DRAWER_WIDTH}px` } }}>
+        <AppBar position="fixed" elevation={0} sx={{ width: { md: `calc(100% - ${DRAWER_WIDTH}px)` }, ml: { md: `${DRAWER_WIDTH}px` }, background: "linear-gradient(90deg, #0f4c81 0%, #1976d2 55%, #2f80ed 100%)" }}>
           <Toolbar sx={{ gap: 2 }}>
             <Typography variant="h6" fontWeight="bold" sx={{ flexGrow: 1 }}>{TEXT.dashboardTitle}</Typography>
-            <Typography variant="body2">{darkMode ? "Oscuro" : "Claro"}</Typography>
-            <Switch checked={darkMode} onChange={(e) => setDarkMode(e.target.checked)} inputProps={{ "aria-label": "Cambiar tema" }} />
+            <Chip label="Estimador histórico" size="small" sx={{ bgcolor: "rgba(255,255,255,.16)", color: "white" }} />
           </Toolbar>
         </AppBar>
         <Drawer
@@ -425,9 +437,14 @@ export default function App() {
                 </Button>
               ))}
             </Box>
-            <Typography variant="h4" fontWeight="bold" gutterBottom align="center">
-              {TEXT.dashboardTitle}
-            </Typography>
+            <Paper sx={{ mb: 3, p: { xs: 2, md: 3 }, background: `linear-gradient(135deg, ${SURFACE_COLORS.hero} 0%, #ffffff 70%)`, border: "1px solid rgba(25,118,210,.12)" }}>
+              <Typography variant="h4" fontWeight="bold" gutterBottom>
+                {TEXT.dashboardTitle}
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                Panel tipo Power BI para explorar crimen histórico, DataOps y estimaciones ML sin prometer predicción futura.
+              </Typography>
+            </Paper>
             <Box sx={{ display: activePage === "dashboard" ? "block" : "none" }}>
 
       {/* Pipeline Overview — 4 cards explaining data flow */}
@@ -682,7 +699,14 @@ export default function App() {
         </Box>
       </Paper>
 
-      <Paper sx={{ p: 2, mb: 4 }}>
+      <Paper sx={{ mb: 2, px: 1 }}>
+        <Tabs value={chartTab} onChange={(_, value) => setChartTab(value)} variant="scrollable" scrollButtons="auto" aria-label="Selector de gráficos">
+          {CHART_TABS.map((tab) => <Tab key={tab.id} value={tab.id} label={tab.label} />)}
+        </Tabs>
+      </Paper>
+
+      <Box sx={{ display: chartTab === "overview" || chartTab === "borough" ? "block" : "none" }}>
+      <Paper sx={{ p: 2, mb: 4, borderTop: 4, borderColor: COLORS.primary }}>
         <Typography variant="h6" gutterBottom>{TEXT.crimesByDistrict}</Typography>
         <Bar
           data={{
@@ -701,8 +725,10 @@ export default function App() {
           }}
         />
       </Paper>
+      </Box>
 
-      <Paper sx={{ p: 2, mb: 4 }}>
+      <Box sx={{ display: chartTab === "overview" || chartTab === "category" ? "block" : "none" }}>
+      <Paper sx={{ p: 2, mb: 4, borderTop: 4, borderColor: COLORS.accent }}>
         <Typography variant="h6" gutterBottom>{TEXT.proportionByCategory}</Typography>
         <Box sx={{ maxWidth: CHART_DEFAULTS.barMaxWidth, mx: "auto" }}>
           <Pie
@@ -717,8 +743,10 @@ export default function App() {
           />
         </Box>
       </Paper>
+      </Box>
 
-      <Paper sx={{ p: 2, mb: 4 }}>
+      <Box sx={{ display: chartTab === "overview" || chartTab === "trend" ? "block" : "none" }}>
+      <Paper sx={{ p: 2, mb: 4, borderTop: 4, borderColor: COLORS.danger }}>
         <Typography variant="h6" gutterBottom>{TEXT.temporalTrend}</Typography>
         <Line
           data={{
@@ -739,8 +767,10 @@ export default function App() {
           }}
         />
       </Paper>
+      </Box>
 
-      <Paper sx={{ p: 2, mb: 4 }}>
+      <Box sx={{ display: chartTab === "overview" || chartTab === "minor" ? "block" : "none" }}>
+      <Paper sx={{ p: 2, mb: 4, borderTop: 4, borderColor: COLORS.secondary }}>
         <Typography variant="h6" gutterBottom>{TEXT.topSubcategories}</Typography>
         <Bar
           data={{
@@ -758,8 +788,10 @@ export default function App() {
           }}
         />
       </Paper>
+      </Box>
 
-      <Paper sx={{ p: 2, mb: 4 }}>
+      <Box sx={{ display: chartTab === "overview" || chartTab === "matrix" ? "block" : "none" }}>
+      <Paper sx={{ p: 2, mb: 4, borderTop: 4, borderColor: COLORS.teal }}>
         <Typography variant="h6" gutterBottom>{TEXT.crimesByDistrictAndYear}</Typography>
         <Box sx={{ overflowX: "auto" }}>
           <Table size="small">
@@ -786,6 +818,7 @@ export default function App() {
           </Table>
         </Box>
       </Paper>
+      </Box>
 
             </Box>
 
