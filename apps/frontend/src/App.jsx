@@ -67,6 +67,7 @@ const SUPABASE_PAGE_SIZE = Number(import.meta.env.VITE_SUPABASE_PAGE_SIZE || 100
 const DETAIL_ROWS_OPTIONS = (import.meta.env.VITE_DETAIL_ROWS_OPTIONS || "25,50,100").split(",").map(Number);
 const INITIAL_DETAIL_ROWS = Number(import.meta.env.VITE_DETAIL_ROWS || DETAIL_ROWS_OPTIONS[0]);
 const DRAWER_WIDTH = 240;
+const ML_MEDIAN_THRESHOLD = 3; // ponytail: model threshold, update if model retrained
 const NAV_ITEMS = [
   { id: "dashboard", label: "Dashboard" },
   { id: "data", label: "Datos" },
@@ -279,6 +280,8 @@ export default function App() {
   const distinctBoroughs = [...new Set(rows.map((r) => r.borough))].sort();
   const distinctCategories = [...new Set(rows.map((r) => r.major_category))].sort();
   const distinctYears = [...new Set(rows.map((r) => r.year))].sort();
+  const yearMin = distinctYears.length ? Math.min(...distinctYears) : null;
+  const yearMax = distinctYears.length ? Math.max(...distinctYears) : null;
 
   const filtered = rows.filter((r) => {
     if (filterBorough && r.borough !== filterBorough) return false;
@@ -954,7 +957,7 @@ export default function App() {
         {mlMetrics && (
           <>
             <Typography variant="subtitle2" align="center" color="text.secondary" gutterBottom>
-              Modelo: {mlMetrics.model} — Estima si la incidencia supera la mediana histórica global (3 delitos/mes)
+              Modelo: {mlMetrics.model} — Estima si la incidencia supera la mediana histórica global ({ML_MEDIAN_THRESHOLD} delitos/mes)
             </Typography>
             <Grid container spacing={2} sx={{ mb: 3 }}>
               {[
@@ -1037,7 +1040,7 @@ export default function App() {
           Estimador Histórico — Delitos Estimados e Incidencia
         </Typography>
         <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-          Selecciona distrito, categoría, mes y año para estimar el perfil histórico de delitos. Esto NO es una predicción del futuro: el modelo aprende patrones del dataset histórico y estima cuántos delitos cabría esperar según el perfil aprendido. Los datos cubren 2008-2016.
+          Selecciona distrito, categoría, mes y año para estimar el perfil histórico de delitos. Esto NO es una predicción del futuro: el modelo aprende patrones del dataset histórico y estima cuántos delitos cabría esperar según el perfil aprendido. Los datos cubren {yearMin || "—"}–{yearMax || "—"}.
         </Typography>
 
         <Grid container spacing={2} alignItems="flex-end">
@@ -1146,9 +1149,9 @@ export default function App() {
               </Box>
             </Box>
             <Alert severity="warning" sx={{ mt: 2 }}>
-              <strong>Limitación importante:</strong> El modelo se entrenó con un split aleatorio 70/30, no
+              <strong>Limitación importante:</strong> El modelo se entrenó con un split aleatorio 70/30{/* ponytail: train_split, hardcoded — add to ml_metrics.json if needed */}, no
               respetando el orden temporal. Esto significa que "aprende" de datos futuros para estimar datos pasados,
-              inflando artificialmente las métricas de accuracy (~89%) y R² (~0.94). En un escenario real de
+              inflando artificialmente las métricas de accuracy (~{mlMetrics?.accuracy ? (mlMetrics.accuracy * 100).toFixed(0) : "89"}%) y R² (~{mlMetrics?.regression?.r2 ? mlMetrics.regression.r2.toFixed(2) : "0.94"}). En un escenario real de
               predicción futura, el rendimiento sería significativamente menor. La estimación refleja el perfil
               histórico aprendido, no una proyección hacia adelante.
             </Alert>
