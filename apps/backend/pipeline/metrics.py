@@ -1,11 +1,59 @@
 import json
+import logging
 import time
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
+from logging.handlers import RotatingFileHandler
 from pathlib import Path
 from typing import Optional
 
 from config import settings
+
+
+class JsonFormatter(logging.Formatter):
+    def format(self, record):
+        payload = {
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "level": record.levelname,
+            "logger": record.name,
+            "message": record.getMessage(),
+        }
+        for key in (
+            "stage",
+            "demo_mode",
+            "sample_rows",
+            "seed",
+            "poisson_mean",
+            "duration_seconds",
+            "model",
+            "metrics",
+            "hyperparameters",
+            "schema_version",
+        ):
+            if hasattr(record, key):
+                payload[key] = getattr(record, key)
+        if record.exc_info:
+            payload["exception"] = self.formatException(record.exc_info)
+        return json.dumps(payload, ensure_ascii=False)
+
+
+def configure_logging():
+    settings.LOG_DIR.mkdir(parents=True, exist_ok=True)
+    formatter = JsonFormatter() if settings.LOG_JSON else logging.Formatter(settings.LOG_FORMAT)
+    handlers = [logging.StreamHandler()]
+    handlers[0].setFormatter(formatter)
+    file_handler = RotatingFileHandler(
+        settings.LOG_DIR / settings.LOG_FILENAME,
+        maxBytes=settings.LOG_MAX_BYTES,
+        backupCount=settings.LOG_BACKUP_COUNT,
+    )
+    file_handler.setFormatter(formatter)
+    handlers.append(file_handler)
+    logging.basicConfig(
+        level=getattr(logging, settings.LOG_LEVEL, logging.INFO),
+        handlers=handlers,
+        force=True,
+    )
 
 
 @dataclass
@@ -31,6 +79,7 @@ class PipelineMetrics:
 
     def to_dict(self):
         return {
+            "schema_version": settings.METRICS_SCHEMA_VERSION,
             "timestamp": self.timestamp,
             "demo_mode": self.demo_mode,
             "total_duration_seconds": round(self.total_duration_seconds, 2),

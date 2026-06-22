@@ -15,18 +15,7 @@ from apps.backend.pipeline.ingestion import ingest_data_from_bigquery, get_sampl
 from apps.backend.pipeline.cleaning import clean_and_transform_data, validate_data_quality
 from apps.backend.pipeline.loading import load_to_supabase, save_clean_data
 from apps.backend.pipeline.data_stage_manager import DataStageManager
-from apps.backend.pipeline.metrics import MetricsCollector
-
-log_dir = settings.LOG_DIR
-log_dir.mkdir(parents=True, exist_ok=True)
-logging.basicConfig(
-    level=getattr(logging, settings.LOG_LEVEL, logging.INFO),
-    format=settings.LOG_FORMAT,
-    handlers=[
-        logging.FileHandler(str(log_dir / settings.LOG_FILENAME)),
-        logging.StreamHandler(),
-    ],
-)
+from apps.backend.pipeline.metrics import MetricsCollector, configure_logging
 
 
 def main():
@@ -36,7 +25,13 @@ def main():
         action="store_true",
         help="Usa datos sintéticos de muestra en lugar de BigQuery",
     )
+    parser.add_argument(
+        "--production",
+        action="store_true",
+        help="Fuerza modo producción si hay credenciales requeridas",
+    )
     args = parser.parse_args()
+    configure_logging()
 
     load_dotenv(dotenv_path=settings.PROJECT_ROOT / ".env")
 
@@ -48,7 +43,7 @@ def main():
             logging.warning("El pipeline continuará en modo demo automáticamente.")
             args.demo = True
 
-    logging.info("--- INICIANDO PIPELINE DATAOPS ---")
+    logging.info("pipeline_dataops_started", extra={"demo_mode": args.demo})
 
     metrics = MetricsCollector()
 
@@ -70,9 +65,15 @@ def main():
 
         metrics.start_stage("ingesta")
         if args.demo:
-            logging.info("=" * 70)
-            logging.info("FASE 1: INGESTA - MODO DEMO (datos sintéticos)")
-            logging.info("=" * 70)
+            logging.info(
+                "DEMO mode enabled",
+                extra={
+                    "demo_mode": True,
+                    "sample_rows": settings.SAMPLE_N_ROWS,
+                    "seed": settings.SAMPLE_RANDOM_SEED,
+                    "poisson_mean": settings.SAMPLE_POISSON_MEAN,
+                },
+            )
             df = get_sample_data(n_rows=settings.SAMPLE_N_ROWS)
         else:
             df = ingest_data_from_bigquery()
@@ -116,18 +117,27 @@ def main():
         )
 
         metrics.start_stage("carga_supabase")
-        try:
-            load_to_supabase(df_agrupado)
-        except Exception as e:
-            logging.warning(f"No se pudo cargar a Supabase: {e}")
-            logging.warning("El pipeline continúa. Verifica la configuración en .env")
+        if args.demo and not settings.LOAD_DEMO_TO_SUPABASE:
+            logging.info(
+                "supabase_load_skipped_for_demo",
+                extra={"demo_mode": True, "stage": "carga_supabase"},
+            )
+        else:
+            try:
+                load_to_supabase(df_agrupado)
+            except Exception as e:
+                logging.warning(f"No se pudo cargar a Supabase: {e}")
+                logging.warning("El pipeline continúa. Verifica la configuración en .env")
         metrics.end_stage()
 
         metrics.set_records(initial_count, len(df_agrupado))
         final_metrics = metrics.finalize()
 
         metrics_path = metrics.save(settings.METRICS_DIR)
-        logging.info(f"KPIs guardados en: {metrics_path}")
+        logging.info(
+            f"pipeline_metrics_saved: {metrics_path}",
+            extra={"schema_version": settings.METRICS_SCHEMA_VERSION, "stage": "metrics"},
+        )
 
         kpi_summary = final_metrics.summary()
         for line in kpi_summary.split("\n"):

@@ -16,7 +16,7 @@ def get_sample_data(n_rows: int = None, inject_errors: bool = True) -> pd.DataFr
     np.random.seed(settings.SAMPLE_RANDOM_SEED)
     records = []
     lsoa_pool = [
-        f"E010{n:05d}" for n in range(settings.SAMPLE_LSOA_RANGE[0], settings.SAMPLE_LSOA_RANGE[1])
+        f"E010{n:05d}" for n in range(settings.SAMPLE_LSOA_START, settings.SAMPLE_LSOA_STOP)
     ]
 
     for _ in range(n_rows):
@@ -48,7 +48,15 @@ def get_sample_data(n_rows: int = None, inject_errors: bool = True) -> pd.DataFr
         df.loc[3, "minor_category"] = "Unknown"
 
     logging.info(
-        f"   Muestra sintética generada: {len(df)} registros, {df['borough'].nunique()} distritos"
+        "DEMO synthetic sample generated",
+        extra={
+            "demo_mode": True,
+            "sample_rows": len(df),
+            "boroughs": int(df["borough"].nunique()),
+            "seed": settings.SAMPLE_RANDOM_SEED,
+            "poisson_mean": settings.SAMPLE_POISSON_MEAN,
+            "inject_errors": inject_errors,
+        },
     )
     return df
 

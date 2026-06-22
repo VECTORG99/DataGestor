@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { createClient } from "@supabase/supabase-js";
 import * as XLSX from "xlsx";
 import Container from "@mui/material/Container";
@@ -10,10 +10,12 @@ import TableCell from "@mui/material/TableCell";
 import TableContainer from "@mui/material/TableContainer";
 import TableHead from "@mui/material/TableHead";
 import TableRow from "@mui/material/TableRow";
+import TablePagination from "@mui/material/TablePagination";
 import Typography from "@mui/material/Typography";
 import Card from "@mui/material/Card";
 import CardContent from "@mui/material/CardContent";
 import Alert from "@mui/material/Alert";
+import Snackbar from "@mui/material/Snackbar";
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
 import CircularProgress from "@mui/material/CircularProgress";
@@ -24,6 +26,15 @@ import MenuItem from "@mui/material/MenuItem";
 import Chip from "@mui/material/Chip";
 import Collapse from "@mui/material/Collapse";
 import IconButton from "@mui/material/IconButton";
+import Drawer from "@mui/material/Drawer";
+import AppBar from "@mui/material/AppBar";
+import Toolbar from "@mui/material/Toolbar";
+import List from "@mui/material/List";
+import ListItemButton from "@mui/material/ListItemButton";
+import Divider from "@mui/material/Divider";
+import Switch from "@mui/material/Switch";
+import { createTheme, ThemeProvider } from "@mui/material/styles";
+import CssBaseline from "@mui/material/CssBaseline";
 import FileDownloadIcon from "@mui/icons-material/FileDownload";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import ExpandLessIcon from "@mui/icons-material/ExpandLess";
@@ -45,8 +56,22 @@ import {
 } from "chart.js";
 
 const COLORS = { primary: "#1976d2", secondary: "#388e3c", accent: "#f57c00", danger: "#d32f2f", purple: "#7b1fa2", teal: "#00796b", pink: "#c2185b", deepPurple: "#512da8", orange: "#e64a19" };
+const SURFACE_COLORS = {
+  raw: "#9e9e9e", darkBg: "#0f172a", darkPaper: "#111827", header: "#f5f5f5", card: "#fafafa",
+  terminalBg: "#1a1a2e", terminalOk: "#00ff88", terminalWarn: "#ffaa00", terminalDim: "#888", terminalText: "#ccc",
+  successSoft: "#e8f5e9", dangerSoft: "#ffebee", probabilityBg: "#e0e0e0",
+};
 const PIE_COLORS = [COLORS.primary, COLORS.secondary, COLORS.accent, COLORS.danger, COLORS.purple, COLORS.teal, COLORS.pink, COLORS.deepPurple, COLORS.orange];
 const CHART_DEFAULTS = { maxRotation: 45, maxTicksLimit: 20, tension: 0.3, pointRadius: 2, barMaxWidth: 500 };
+const SUPABASE_PAGE_SIZE = Number(import.meta.env.VITE_SUPABASE_PAGE_SIZE || 1000);
+const DETAIL_ROWS_OPTIONS = (import.meta.env.VITE_DETAIL_ROWS_OPTIONS || "25,50,100").split(",").map(Number);
+const INITIAL_DETAIL_ROWS = Number(import.meta.env.VITE_DETAIL_ROWS || DETAIL_ROWS_OPTIONS[0]);
+const DRAWER_WIDTH = 240;
+const NAV_ITEMS = [
+  { id: "dashboard", label: "Dashboard" },
+  { id: "data", label: "Datos" },
+  { id: "ml", label: "ML Insights" },
+];
 const TEXT = {
   loading: "Cargando...", missingEnv: "Faltan variables de entorno", dashboardTitle: "London Crime Dashboard",
   cleanRecords: "Registros Limpios", leadingDistrict: "Distrito Líder", mainCategory: "Categoría Principal",
@@ -100,6 +125,11 @@ export default function App() {
   const [pipelineLogs, setPipelineLogs] = useState(null);
   const [logsOpen, setLogsOpen] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [activePage, setActivePage] = useState("dashboard");
+  const [darkMode, setDarkMode] = useState(true);
+  const [tablePage, setTablePage] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(INITIAL_DETAIL_ROWS);
+  const [toast, setToast] = useState(null);
 
   // Predictor state
   const [predBorough, setPredBorough] = useState("");
@@ -111,6 +141,22 @@ export default function App() {
   const [predLoading, setPredLoading] = useState(false);
   const [predError, setPredError] = useState(null);
 
+  const notify = (message, severity = "error") => setToast({ message, severity });
+
+  const theme = useMemo(() => createTheme({
+    palette: {
+      mode: darkMode ? "dark" : "light",
+      primary: { main: COLORS.primary },
+      secondary: { main: COLORS.secondary },
+      background: darkMode ? { default: SURFACE_COLORS.darkBg, paper: SURFACE_COLORS.darkPaper } : undefined,
+    },
+    shape: { borderRadius: 10 },
+    components: {
+      MuiCard: { styleOverrides: { root: { boxShadow: darkMode ? "0 10px 30px rgba(0,0,0,.24)" : "0 8px 24px rgba(15,23,42,.08)" } } },
+      MuiPaper: { styleOverrides: { root: { backgroundImage: "none" } } },
+    },
+  }), [darkMode]);
+
   useEffect(() => {
     async function fetchRows() {
       setLoading(true);
@@ -121,7 +167,7 @@ export default function App() {
       }
       // Supabase caps responses at 1000 rows per request,
       // so we paginate sequentially with retry to avoid rate limits.
-      const PAGE_SIZE = 1000;
+      const PAGE_SIZE = SUPABASE_PAGE_SIZE;
 
       // First, get total count and first page
       const { data: firstPage, count: totalCount, error: firstErr } = await supabase
@@ -248,6 +294,7 @@ export default function App() {
   const boroughYear = groupByTwo(filtered, "borough", "year");
 
   const columns = rows[0] ? Object.keys(rows[0]) : [];
+  const pagedRows = filtered.slice(tablePage * rowsPerPage, tablePage * rowsPerPage + rowsPerPage);
 
   // Export Functions
   const exportToExcelFiltered = async () => {
@@ -268,7 +315,7 @@ export default function App() {
       XLSX.writeFile(wb, `london_crime_filtered_${new Date().toISOString().split('T')[0]}.xlsx`);
     } catch (error) {
       console.error("Error exporting filtered data:", error);
-      alert("Error al exportar datos filtrados");
+      notify("Error al exportar datos filtrados");
     } finally {
       setExporting(false);
     }
@@ -306,7 +353,7 @@ export default function App() {
       XLSX.writeFile(wb, `london_crime_aggregated_${new Date().toISOString().split('T')[0]}.xlsx`);
     } catch (error) {
       console.error("Error exporting aggregated data:", error);
-      alert("Error al exportar datos agregados");
+      notify("Error al exportar datos agregados");
     } finally {
       setExporting(false);
     }
@@ -330,23 +377,64 @@ export default function App() {
       XLSX.writeFile(wb, `london_crime_complete_${new Date().toISOString().split('T')[0]}.xlsx`);
     } catch (error) {
       console.error("Error exporting complete data:", error);
-      alert("Error al exportar dataset completo");
+      notify("Error al exportar dataset completo");
     } finally {
       setExporting(false);
     }
   };
 
   return (
-    <Container maxWidth="xl" sx={{ py: 4, px: { xs: 1, sm: 2, md: 3 } }}>
-      <Typography variant="h4" fontWeight="bold" gutterBottom align="center">
-        {TEXT.dashboardTitle}
-      </Typography>
+    <ThemeProvider theme={theme}>
+      <CssBaseline />
+      <Box sx={{ display: "flex", minHeight: "100vh", bgcolor: "background.default" }}>
+        <AppBar position="fixed" sx={{ width: { md: `calc(100% - ${DRAWER_WIDTH}px)` }, ml: { md: `${DRAWER_WIDTH}px` } }}>
+          <Toolbar sx={{ gap: 2 }}>
+            <Typography variant="h6" fontWeight="bold" sx={{ flexGrow: 1 }}>{TEXT.dashboardTitle}</Typography>
+            <Typography variant="body2">{darkMode ? "Oscuro" : "Claro"}</Typography>
+            <Switch checked={darkMode} onChange={(e) => setDarkMode(e.target.checked)} inputProps={{ "aria-label": "Cambiar tema" }} />
+          </Toolbar>
+        </AppBar>
+        <Drawer
+          variant="permanent"
+          sx={{
+            width: DRAWER_WIDTH,
+            flexShrink: 0,
+            [`& .MuiDrawer-paper`]: { width: DRAWER_WIDTH, boxSizing: "border-box" },
+            display: { xs: "none", md: "block" },
+          }}
+        >
+          <Toolbar>
+            <Typography variant="subtitle1" fontWeight="bold">London Crime</Typography>
+          </Toolbar>
+          <Divider />
+          <List>
+            {NAV_ITEMS.map((item) => (
+              <ListItemButton key={item.id} selected={activePage === item.id} onClick={() => setActivePage(item.id)}>
+                {item.label}
+              </ListItemButton>
+            ))}
+          </List>
+        </Drawer>
+        <Box component="main" sx={{ flexGrow: 1, width: { md: `calc(100% - ${DRAWER_WIDTH}px)` } }}>
+          <Toolbar />
+          <Container maxWidth="xl" sx={{ py: 4, px: { xs: 1, sm: 2, md: 3 } }}>
+            <Box sx={{ display: { xs: "flex", md: "none" }, gap: 1, mb: 2, overflowX: "auto" }}>
+              {NAV_ITEMS.map((item) => (
+                <Button key={item.id} variant={activePage === item.id ? "contained" : "outlined"} onClick={() => setActivePage(item.id)} size="small">
+                  {item.label}
+                </Button>
+              ))}
+            </Box>
+            <Typography variant="h4" fontWeight="bold" gutterBottom align="center">
+              {TEXT.dashboardTitle}
+            </Typography>
+            <Box sx={{ display: activePage === "dashboard" ? "block" : "none" }}>
 
       {/* Pipeline Overview — 4 cards explaining data flow */}
       <Grid container spacing={2} sx={{ mb: 4 }}>
         {/* Stage 1: Raw BigQuery records */}
         <Grid item xs={12} sm={6} md={3}>
-          <Card sx={{ borderTop: 3, borderColor: "#9e9e9e" }}>
+          <Card sx={{ borderTop: 3, borderColor: SURFACE_COLORS.raw }}>
             <CardContent sx={{ py: 1.5 }}>
               <Typography variant="caption" color="text.secondary" sx={{ textTransform: "uppercase", letterSpacing: 1 }}>Fase 1 — BigQuery</Typography>
               <Typography variant="body2" color="text.secondary">Datos Crudos (LSOA)</Typography>
@@ -439,7 +527,7 @@ export default function App() {
 
       {/* Pipeline Logs — collapsible section */}
       <Paper sx={{ mb: 4, overflow: "hidden" }}>
-        <Box sx={{ display: "flex", alignItems: "center", px: 2, py: 1.5, bgcolor: "#f5f5f5", cursor: "pointer" }} onClick={() => setLogsOpen(!logsOpen)}>
+        <Box sx={{ display: "flex", alignItems: "center", px: 2, py: 1.5, bgcolor: SURFACE_COLORS.header, cursor: "pointer" }} onClick={() => setLogsOpen(!logsOpen)}>
           <TimelineIcon sx={{ mr: 1, fontSize: 20, color: "text.secondary" }} />
           <Typography variant="subtitle2" fontWeight="bold" sx={{ flexGrow: 1 }}>
             Pipeline ETL — Resumen de Ejecución
@@ -465,7 +553,7 @@ export default function App() {
                   <Grid container spacing={1.5} sx={{ mt: 0.5 }}>
                     {run.stages.map((s, si) => (
                       <Grid item xs={6} sm={4} md={2} key={si}>
-                        <Card variant="outlined" sx={{ bgcolor: "#fafafa" }}>
+                        <Card variant="outlined" sx={{ bgcolor: SURFACE_COLORS.card }}>
                           <CardContent sx={{ py: 1, px: 1.5, "&:last-child": { pb: 1 } }}>
                             <Typography variant="caption" color="text.secondary" sx={{ fontSize: 10, lineHeight: 1.2, display: "block" }}>{s.stage}</Typography>
                             <Typography variant="body2" fontWeight="bold">{s.duration_s.toFixed(1)}s</Typography>
@@ -507,12 +595,12 @@ export default function App() {
 
               {/* Recent log entries */}
               <Typography variant="caption" color="text.secondary" sx={{ textTransform: "uppercase", letterSpacing: 1, fontSize: 10 }}>Últimos Eventos del Pipeline</Typography>
-              <Box sx={{ bgcolor: "#1a1a2e", color: "#00ff88", borderRadius: 1, p: 1.5, mt: 0.5, fontFamily: "monospace", fontSize: 11, maxHeight: 200, overflowY: "auto" }}>
+              <Box sx={{ bgcolor: SURFACE_COLORS.terminalBg, color: SURFACE_COLORS.terminalOk, borderRadius: 1, p: 1.5, mt: 0.5, fontFamily: "monospace", fontSize: 11, maxHeight: 200, overflowY: "auto" }}>
                 {pipelineLogs.recent_entries.map((e, i) => (
                   <Box key={i} sx={{ display: "flex", gap: 1 }}>
-                    <Typography variant="caption" sx={{ color: "#888", fontFamily: "monospace", fontSize: 10, whiteSpace: "nowrap" }}>{e.ts}</Typography>
-                    <Typography variant="caption" sx={{ color: e.level === "WARN" ? "#ffaa00" : "#00ff88", fontFamily: "monospace", fontSize: 10, whiteSpace: "nowrap" }}>[{e.level}]</Typography>
-                    <Typography variant="caption" sx={{ color: "#ccc", fontFamily: "monospace", fontSize: 10 }}>{e.msg}</Typography>
+                    <Typography variant="caption" sx={{ color: SURFACE_COLORS.terminalDim, fontFamily: "monospace", fontSize: 10, whiteSpace: "nowrap" }}>{e.ts}</Typography>
+                    <Typography variant="caption" sx={{ color: e.level === "WARN" ? SURFACE_COLORS.terminalWarn : SURFACE_COLORS.terminalOk, fontFamily: "monospace", fontSize: 10, whiteSpace: "nowrap" }}>[{e.level}]</Typography>
+                    <Typography variant="caption" sx={{ color: SURFACE_COLORS.terminalText, fontFamily: "monospace", fontSize: 10 }}>{e.msg}</Typography>
                   </Box>
                 ))}
               </Box>
@@ -699,6 +787,9 @@ export default function App() {
         </Box>
       </Paper>
 
+            </Box>
+
+            <Box sx={{ display: activePage === "data" ? "block" : "none" }}>
       <Typography variant="h6" gutterBottom>{TEXT.detailedData}</Typography>
       {filtered.length === 0 ? (
         <Alert severity="info">{TEXT.noFilteredData}</Alert>
@@ -726,7 +817,7 @@ export default function App() {
                 </TableRow>
               </TableHead>
               <TableBody>
-                {filtered.slice(0, 100).map((row, idx) => (
+                {pagedRows.map((row, idx) => (
                   <TableRow key={idx}>
                     {columns.map((col) => (
                       <TableCell key={col}>{row[col] != null ? String(row[col]) : "-"}</TableCell>
@@ -736,9 +827,21 @@ export default function App() {
               </TableBody>
             </Table>
           </TableContainer>
+          <TablePagination
+            component="div"
+            count={filtered.length}
+            page={tablePage}
+            onPageChange={(_, page) => setTablePage(page)}
+            rowsPerPage={rowsPerPage}
+            onRowsPerPageChange={(e) => { setRowsPerPage(Number(e.target.value)); setTablePage(0); }}
+            rowsPerPageOptions={DETAIL_ROWS_OPTIONS}
+          />
         </>
       )}
 
+            </Box>
+
+            <Box sx={{ display: activePage === "ml" ? "block" : "none" }}>
       {/* ML Insights Section */}
       <Box sx={{ mt: 6, mb: 2 }}>
         <Typography variant="h5" fontWeight="bold" gutterBottom align="center">
@@ -776,11 +879,11 @@ export default function App() {
                     <Box sx={{ display: "inline-grid", gridTemplateColumns: "auto 1fr 1fr", gap: 1, alignItems: "center" }}>
                       <Box /><Typography variant="caption" sx={{ fontWeight: "bold", textAlign: "center" }}>Pred. Bajo</Typography><Typography variant="caption" sx={{ fontWeight: "bold", textAlign: "center" }}>Pred. Alto</Typography>
                       <Typography variant="caption" sx={{ fontWeight: "bold" }}>Real Bajo</Typography>
-                      <Box sx={{ bgcolor: "#e8f5e9", border: 1, borderColor: "success.main", borderRadius: 1, px: 2, py: 1 }}><Typography align="center" fontWeight="bold">{mlMetrics.true_negatives.toLocaleString()}</Typography><Typography variant="caption" display="block" align="center">VN</Typography></Box>
-                      <Box sx={{ bgcolor: "#ffebee", border: 1, borderColor: "error.main", borderRadius: 1, px: 2, py: 1 }}><Typography align="center" fontWeight="bold">{mlMetrics.false_positives.toLocaleString()}</Typography><Typography variant="caption" display="block" align="center">FP</Typography></Box>
+                      <Box sx={{ bgcolor: SURFACE_COLORS.successSoft, border: 1, borderColor: "success.main", borderRadius: 1, px: 2, py: 1 }}><Typography align="center" fontWeight="bold">{mlMetrics.true_negatives.toLocaleString()}</Typography><Typography variant="caption" display="block" align="center">VN</Typography></Box>
+                      <Box sx={{ bgcolor: SURFACE_COLORS.dangerSoft, border: 1, borderColor: "error.main", borderRadius: 1, px: 2, py: 1 }}><Typography align="center" fontWeight="bold">{mlMetrics.false_positives.toLocaleString()}</Typography><Typography variant="caption" display="block" align="center">FP</Typography></Box>
                       <Typography variant="caption" sx={{ fontWeight: "bold" }}>Real Alto</Typography>
-                      <Box sx={{ bgcolor: "#ffebee", border: 1, borderColor: "error.main", borderRadius: 1, px: 2, py: 1 }}><Typography align="center" fontWeight="bold">{mlMetrics.false_negatives.toLocaleString()}</Typography><Typography variant="caption" display="block" align="center">FN</Typography></Box>
-                      <Box sx={{ bgcolor: "#e8f5e9", border: 1, borderColor: "success.main", borderRadius: 1, px: 2, py: 1 }}><Typography align="center" fontWeight="bold">{mlMetrics.true_positives.toLocaleString()}</Typography><Typography variant="caption" display="block" align="center">VP</Typography></Box>
+                      <Box sx={{ bgcolor: SURFACE_COLORS.dangerSoft, border: 1, borderColor: "error.main", borderRadius: 1, px: 2, py: 1 }}><Typography align="center" fontWeight="bold">{mlMetrics.false_negatives.toLocaleString()}</Typography><Typography variant="caption" display="block" align="center">FN</Typography></Box>
+                      <Box sx={{ bgcolor: SURFACE_COLORS.successSoft, border: 1, borderColor: "success.main", borderRadius: 1, px: 2, py: 1 }}><Typography align="center" fontWeight="bold">{mlMetrics.true_positives.toLocaleString()}</Typography><Typography variant="caption" display="block" align="center">VP</Typography></Box>
                     </Box>
                   </Box>
                 </Paper>
@@ -913,7 +1016,7 @@ export default function App() {
 
         {/* Prediction result */}
         {predResult && (
-          <Box sx={{ mt: 2, p: 2, bgcolor: predResult.prediction === 1 ? "#ffebee" : "#e8f5e9", borderRadius: 1 }}>
+          <Box sx={{ mt: 2, p: 2, bgcolor: predResult.prediction === 1 ? SURFACE_COLORS.dangerSoft : SURFACE_COLORS.successSoft, borderRadius: 1 }}>
             <Typography variant="caption" color="text.secondary">Delitos estimados</Typography>
             <Typography variant="h4" fontWeight="bold">
               {predResult.predicted_crimes} delitos
@@ -943,7 +1046,7 @@ export default function App() {
               histórico aprendido, no una proyección hacia adelante.
             </Alert>
             {/* Probability bar */}
-            <Box sx={{ mt: 1, width: "100%", bgcolor: "#e0e0e0", borderRadius: 1, height: 20, position: "relative", overflow: "hidden" }}>
+            <Box sx={{ mt: 1, width: "100%", bgcolor: SURFACE_COLORS.probabilityBg, borderRadius: 1, height: 20, position: "relative", overflow: "hidden" }}>
               <Box sx={{ width: `${(predResult.probability_high * 100).toFixed(1)}%`, bgcolor: COLORS.danger, height: "100%", transition: "width 0.5s" }} />
               <Typography variant="caption" sx={{ position: "absolute", top: 2, left: 8, fontWeight: "bold", color: "#333" }}>
                 Baja: {(predResult.probability_low * 100).toFixed(0)}%
@@ -960,6 +1063,15 @@ export default function App() {
           </Alert>
         )}
       </Paper>
-    </Container>
+            </Box>
+          </Container>
+          <Snackbar open={Boolean(toast)} autoHideDuration={4000} onClose={() => setToast(null)}>
+            <Alert severity={toast?.severity || "info"} onClose={() => setToast(null)} sx={{ width: "100%" }}>
+              {toast?.message}
+            </Alert>
+          </Snackbar>
+        </Box>
+      </Box>
+    </ThemeProvider>
   );
 }

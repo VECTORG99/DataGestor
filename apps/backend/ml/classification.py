@@ -5,6 +5,7 @@ import os
 
 import joblib
 import matplotlib
+from config import settings
 
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
@@ -25,9 +26,12 @@ from sklearn.metrics import (
 )
 
 
-def train_logistic_regression(X_train, y_train, max_iter=1000):
+def train_logistic_regression(X_train, y_train, max_iter=None):
     """Train Logistic Regression classifier."""
-    model = LogisticRegression(max_iter=max_iter, random_state=42)
+    model = LogisticRegression(
+        max_iter=max_iter or settings.ML_LOGREG_MAX_ITER,
+        random_state=settings.ML_RANDOM_STATE,
+    )
     model.fit(X_train, y_train)
     logging.info("[ML] Logistic Regression entrenada.")
     return model
@@ -35,7 +39,12 @@ def train_logistic_regression(X_train, y_train, max_iter=1000):
 
 def train_crime_regressor(X_train, y_train):
     """Train a small regressor to estimate monthly crime count."""
-    model = RandomForestRegressor(n_estimators=80, min_samples_leaf=3, random_state=42, n_jobs=-1)
+    model = RandomForestRegressor(
+        n_estimators=settings.ML_RF_N_ESTIMATORS,
+        min_samples_leaf=settings.ML_RF_MIN_SAMPLES_LEAF,
+        random_state=settings.ML_RANDOM_STATE,
+        n_jobs=settings.ML_N_JOBS,
+    )
     model.fit(X_train, y_train)
     logging.info("[ML] Crime count regressor entrenado.")
     return model
@@ -85,9 +94,10 @@ def evaluate_classification(model, X_test, y_test, model_name: str = "model") ->
 def plot_confusion_matrix(
     y_test,
     y_pred,
-    save_path: str = "/app/data/metrics/confusion_matrix.png",
+    save_path: str = None,
 ):
     """Save confusion matrix plot."""
+    save_path = save_path or str(settings.METRICS_DIR / settings.ML_CONFUSION_MATRIX_FILENAME)
     fig, ax = plt.subplots(figsize=(6, 5))
     ConfusionMatrixDisplay.from_predictions(y_test, y_pred, ax=ax, cmap="Blues", values_format="d")
     ax.set_title("Matriz de Confusion")
@@ -99,9 +109,10 @@ def plot_confusion_matrix(
 def plot_roc_curve(
     y_test,
     y_proba,
-    save_path: str = "/app/data/metrics/roc_curve.png",
+    save_path: str = None,
 ):
     """Save ROC curve plot."""
+    save_path = save_path or str(settings.METRICS_DIR / settings.ML_ROC_CURVE_FILENAME)
     fpr, tpr, _ = roc_curve(y_test, y_proba)
     roc_auc = auc(fpr, tpr)
 

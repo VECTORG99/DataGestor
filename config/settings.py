@@ -21,14 +21,16 @@ METRICS_DIR = Path(os.getenv("METRICS_DIR", DATA_DIR / "metrics"))
 LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")
 LOG_FORMAT = os.getenv("LOG_FORMAT", "%(asctime)s [%(levelname)s] %(message)s")
 LOG_FILENAME = os.getenv("LOG_FILENAME", "pipeline.log")
+LOG_JSON = os.getenv("LOG_JSON", "true").lower() == "true"
+LOG_MAX_BYTES = int(os.getenv("LOG_MAX_BYTES", "1048576"))
+LOG_BACKUP_COUNT = int(os.getenv("LOG_BACKUP_COUNT", "3"))
+METRICS_SCHEMA_VERSION = os.getenv("METRICS_SCHEMA_VERSION", "1.0")
 
 # ---------------------------------------------------------------------------
 # GCP / BigQuery
 # ---------------------------------------------------------------------------
 GCP_PROJECT_ID = os.getenv("GCP_PROJECT_ID", "london-crime-491323")
-BIGQUERY_TABLE = os.getenv(
-    "BIGQUERY_TABLE", "bigquery-public-data.london_crime.crime_by_lsoa"
-)
+BIGQUERY_TABLE = os.getenv("BIGQUERY_TABLE", "bigquery-public-data.london_crime.crime_by_lsoa")
 # Limite de filas a extraer de BigQuery.
 #   - 1_000_000 raw (~295 MB parquet) → ~44_886 agregadas (~3 MB CSV)
 #   - Supabase Free Tier: 500 MB total DB
@@ -49,6 +51,7 @@ SUPABASE_TABLE_NAME = os.getenv("SUPABASE_TABLE_NAME", "london_crime_aggregated"
 DB_IF_EXISTS = os.getenv("DB_IF_EXISTS", "replace")
 DB_CHUNKSIZE = int(os.getenv("DB_CHUNKSIZE", "1000"))
 DB_ECHO = os.getenv("DB_ECHO", "false").lower() == "true"
+LOAD_DEMO_TO_SUPABASE = os.getenv("LOAD_DEMO_TO_SUPABASE", "false").lower() == "true"
 
 # ---------------------------------------------------------------------------
 # Export
@@ -76,18 +79,37 @@ OUTLIER_DEFAULT_METHOD = os.getenv("OUTLIER_DEFAULT_METHOD", "iqr")
 CRITICAL_COLUMNS = ["borough", "major_category", "value", "year", "month"]
 TEXT_COLUMNS = ["borough", "major_category", "minor_category"]
 GROUPBY_COLS = [
-    "borough", "major_category", "minor_category", "year", "month",
+    "borough",
+    "major_category",
+    "minor_category",
+    "year",
+    "month",
 ]
 KEEP_COLUMNS = [
-    "borough", "major_category", "minor_category",
-    "year", "month", "total_crimes", "date",
+    "borough",
+    "major_category",
+    "minor_category",
+    "year",
+    "month",
+    "total_crimes",
+    "date",
 ]
 EXPECTED_COLUMNS_RAW = [
-    "borough", "major_category", "minor_category", "year", "month", "value",
+    "borough",
+    "major_category",
+    "minor_category",
+    "year",
+    "month",
+    "value",
 ]
 EXPECTED_COLUMNS_PROCESSED = [
-    "borough", "major_category", "minor_category",
-    "year", "month", "total_crimes", "date",
+    "borough",
+    "major_category",
+    "minor_category",
+    "year",
+    "month",
+    "total_crimes",
+    "date",
 ]
 
 # ---------------------------------------------------------------------------
@@ -100,9 +122,19 @@ SEPARATOR_LENGTH = 70
 # ---------------------------------------------------------------------------
 # NULL values
 # ---------------------------------------------------------------------------
-NULL_VALUES = frozenset({
-    "", "NULL", "null", "None", "Unknown", "unknown", "N/A", "n/a", "NaN",
-})
+NULL_VALUES = frozenset(
+    {
+        "",
+        "NULL",
+        "null",
+        "None",
+        "Unknown",
+        "unknown",
+        "N/A",
+        "n/a",
+        "NaN",
+    }
+)
 
 # ---------------------------------------------------------------------------
 # Borough corrections
@@ -120,8 +152,9 @@ BOROUGH_CORRECTIONS = {
 SAMPLE_N_ROWS = int(os.getenv("SAMPLE_N_ROWS", "150"))
 SAMPLE_RANDOM_SEED = int(os.getenv("SAMPLE_RANDOM_SEED", "42"))
 SAMPLE_POISSON_MEAN = int(os.getenv("SAMPLE_POISSON_MEAN", "15"))
-SAMPLE_YEARS = [2016, 2017, 2018, 2019]
-SAMPLE_LSOA_RANGE = (1, 200)
+SAMPLE_YEARS = [int(y) for y in os.getenv("SAMPLE_YEARS", "2016,2017,2018,2019").split(",")]
+SAMPLE_LSOA_START = int(os.getenv("SAMPLE_LSOA_START", "1"))
+SAMPLE_LSOA_STOP = int(os.getenv("SAMPLE_LSOA_STOP", "200"))
 
 # ---------------------------------------------------------------------------
 # Sample data (cargado desde JSON)
@@ -150,6 +183,21 @@ RAW_FILENAME = os.getenv("RAW_FILENAME", "london_crime_raw")
 VALIDATED_FILENAME = os.getenv("VALIDATED_FILENAME", "london_crime_validated")
 PROCESSED_FILENAME = os.getenv("PROCESSED_FILENAME", "london_crime_processed")
 VALIDATION_REPORT_FILENAME = os.getenv("VALIDATION_REPORT_FILENAME", "validation_report")
+
+# ---------------------------------------------------------------------------
+# ML hyperparameters and artifacts
+# ---------------------------------------------------------------------------
+ML_RANDOM_STATE = int(os.getenv("ML_RANDOM_STATE", "42"))
+ML_LOGREG_MAX_ITER = int(os.getenv("ML_LOGREG_MAX_ITER", "1000"))
+ML_RF_N_ESTIMATORS = int(os.getenv("ML_RF_N_ESTIMATORS", "80"))
+ML_RF_MIN_SAMPLES_LEAF = int(os.getenv("ML_RF_MIN_SAMPLES_LEAF", "3"))
+ML_N_JOBS = int(os.getenv("ML_N_JOBS", "-1"))
+ML_CLASSIFIER_FILENAME = os.getenv("ML_CLASSIFIER_FILENAME", "logistic_regression.joblib")
+ML_REGRESSOR_FILENAME = os.getenv("ML_REGRESSOR_FILENAME", "crime_regressor.joblib")
+ML_PREPROCESSOR_FILENAME = os.getenv("ML_PREPROCESSOR_FILENAME", "preprocessor.joblib")
+ML_METRICS_FILENAME = os.getenv("ML_METRICS_FILENAME", "ml_metrics.json")
+ML_CONFUSION_MATRIX_FILENAME = os.getenv("ML_CONFUSION_MATRIX_FILENAME", "confusion_matrix.png")
+ML_ROC_CURVE_FILENAME = os.getenv("ML_ROC_CURVE_FILENAME", "roc_curve.png")
 
 # ---------------------------------------------------------------------------
 # Variables de entorno requeridas
