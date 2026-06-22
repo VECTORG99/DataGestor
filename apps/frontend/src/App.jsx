@@ -147,6 +147,7 @@ export default function App() {
   const [logsOpen, setLogsOpen] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [activePage, setActivePage] = useState("dashboard");
+  const [dashboardTab, setDashboardTab] = useState("summary");
   const [chartTab, setChartTab] = useState("overview");
   const [tablePage, setTablePage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(INITIAL_DETAIL_ROWS);
@@ -316,6 +317,12 @@ export default function App() {
 
   const columns = rows[0] ? Object.keys(rows[0]) : [];
   const pagedRows = filtered.slice(tablePage * rowsPerPage, tablePage * rowsPerPage + rowsPerPage);
+  const latestRun = pipelineLogs?.production_runs?.[0];
+  const stages = latestRun?.stages || [];
+  const slowestStage = stages.reduce((max, stage) => (stage.duration_s > (max?.duration_s || 0) ? stage : max), null);
+  const recentErrors = pipelineLogs?.recent_entries?.filter((e) => e.level === "ERROR") || [];
+  const recentWarnings = pipelineLogs?.recent_entries?.filter((e) => e.level === "WARN") || [];
+  const pipelineStable = Boolean(latestRun) && recentErrors.length === 0;
 
   // Export Functions
   const exportToExcelFiltered = async () => {
@@ -441,11 +448,16 @@ export default function App() {
               <Typography variant="h4" fontWeight="bold" gutterBottom>
                 {TEXT.dashboardTitle}
               </Typography>
-              <Typography variant="body2" color="text.secondary">
-                Panel tipo Power BI para explorar crimen histórico, DataOps y estimaciones ML sin prometer predicción futura.
-              </Typography>
             </Paper>
             <Box sx={{ display: activePage === "dashboard" ? "block" : "none" }}>
+              <Paper sx={{ mb: 3, px: 1 }}>
+                <Tabs value={dashboardTab} onChange={(_, value) => setDashboardTab(value)} variant="scrollable" scrollButtons="auto" aria-label="Subpáginas dashboard">
+                  <Tab value="summary" label="Resumen DataOps" />
+                  <Tab value="logs" label="Logs" />
+                </Tabs>
+              </Paper>
+
+              <Box sx={{ display: dashboardTab === "summary" ? "block" : "none" }}>
 
       {/* Pipeline Overview — 4 cards explaining data flow */}
       <Grid container spacing={2} sx={{ mb: 4 }}>
@@ -541,8 +553,62 @@ export default function App() {
           </CardContent></Card>
         </Grid>
       </Grid>
+              </Box>
 
       {/* Pipeline Logs — collapsible section */}
+              <Box sx={{ display: dashboardTab === "logs" ? "block" : "none" }}>
+      <Grid container spacing={2} sx={{ mb: 3 }}>
+        {[
+          { label: "Tiempo total de ejecución", value: latestRun ? `${latestRun.duration_seconds.toFixed(1)}s` : "No disponible", detail: "Desde ingesta hasta carga/evaluación según último run registrado.", color: COLORS.primary },
+          { label: "Errores en logs", value: recentErrors.length, detail: recentWarnings.length ? `${recentWarnings.length} advertencias recientes; sin fallos críticos detectados.` : "Sin errores críticos recientes.", color: recentErrors.length ? COLORS.danger : COLORS.secondary },
+          { label: "Estabilidad", value: pipelineStable ? "Estable" : "Revisar", detail: pipelineStable ? "Pipeline completa etapas sin cierres inesperados en logs disponibles." : "Hay errores recientes o faltan logs completos.", color: pipelineStable ? COLORS.secondary : COLORS.accent },
+          { label: "Mayor carga detectada", value: slowestStage?.stage || "No disponible", detail: slowestStage ? `Etapa más lenta: ${slowestStage.duration_s.toFixed(1)}s.` : "No hay detalle de etapas.", color: COLORS.purple },
+          { label: "Consumo RAM", value: "No instrumentado", detail: "Agregar psutil/tracemalloc para medir memoria durante entrenamiento.", color: SURFACE_COLORS.raw },
+          { label: "Consumo CPU", value: "No instrumentado", detail: "Agregar psutil para %CPU por etapa y entorno.", color: SURFACE_COLORS.raw },
+        ].map((metric) => (
+          <Grid item xs={12} sm={6} md={4} key={metric.label}>
+            <Card sx={{ borderTop: 3, borderColor: metric.color }}>
+              <CardContent>
+                <Typography variant="body2" color="text.secondary">{metric.label}</Typography>
+                <Typography variant="h5" fontWeight="bold" sx={{ color: metric.color }}>{metric.value}</Typography>
+                <Typography variant="caption" color="text.secondary">{metric.detail}</Typography>
+              </CardContent>
+            </Card>
+          </Grid>
+        ))}
+      </Grid>
+
+      <Paper sx={{ p: 2, mb: 3 }}>
+        <Typography variant="h6" fontWeight="bold" gutterBottom>Logs — análisis operativo</Typography>
+        <Table size="small">
+          <TableHead>
+            <TableRow>
+              <TableCell sx={{ fontWeight: "bold" }}>Área</TableCell>
+              <TableCell sx={{ fontWeight: "bold" }}>Qué se revisa</TableCell>
+              <TableCell sx={{ fontWeight: "bold" }}>Estado actual</TableCell>
+              <TableCell sx={{ fontWeight: "bold" }}>Acción recomendada</TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {[
+              ["Tiempo total", "Duración por volumen y entorno", latestRun ? `${latestRun.duration_seconds.toFixed(1)}s en ${latestRun.mode}` : "Sin run registrado", slowestStage ? `Optimizar ${slowestStage.stage}` : "Ejecutar pipeline"],
+              ["Errores", "Errores críticos, warnings o fallos parciales", `${recentErrors.length} errores · ${recentWarnings.length} warnings`, recentErrors.length ? "Revisar eventos ERROR" : "Warnings menores no bloquean ejecución"],
+              ["Estabilidad", "Etapas completas sin cierres inesperados", pipelineStable ? "Completa correctamente" : "Incompleta o sin logs", "Mantener monitoreo por etapa"],
+              ["RAM", "Memoria durante ingesta/entrenamiento", "No instrumentado", "Agregar psutil/tracemalloc"],
+              ["CPU", "%CPU por etapa", "No instrumentado", "Agregar psutil y tabla por entorno"],
+              ["Cuello de botella", "Etapa con más carga", slowestStage ? `${slowestStage.stage} (${slowestStage.duration_s.toFixed(1)}s)` : "Sin datos", slowestStage ? "Priorizar esa etapa" : "Registrar etapas"],
+            ].map(([area, check, status, action]) => (
+              <TableRow key={area}>
+                <TableCell>{area}</TableCell>
+                <TableCell>{check}</TableCell>
+                <TableCell>{status}</TableCell>
+                <TableCell>{action}</TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </Paper>
+
       <Paper sx={{ mb: 4, overflow: "hidden" }}>
         <Box sx={{ display: "flex", alignItems: "center", px: 2, py: 1.5, bgcolor: SURFACE_COLORS.header, cursor: "pointer" }} onClick={() => setLogsOpen(!logsOpen)}>
           <TimelineIcon sx={{ mr: 1, fontSize: 20, color: "text.secondary" }} />
@@ -629,6 +695,7 @@ export default function App() {
           )}
         </Collapse>
       </Paper>
+              </Box>
 
       <Paper sx={{ p: { xs: 1.5, sm: 2 }, mb: 4 }}>
         <Typography variant="subtitle1" fontWeight="bold" gutterBottom align="center">
