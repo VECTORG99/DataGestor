@@ -12,32 +12,33 @@
 Supabase (datos agregados)
     │
     ▼
-apps/backend/ml/train.py
+apps/backend/cli/ml_pipeline.py
     │
     ├── Carga datos desde Supabase (london_crime_aggregated)
-    ├── Crea columna target_binary: 1 si total_crimes > mediana (3), 0 si no
-    ├── One-hot encode de features categóricas
+    ├── Usa apps/backend/ml/preprocessing.py → features + preprocessor sklearn Pipeline
+    ├── Crea target_binary: 1 si total_crimes > mediana (3), 0 si no
+    ├── One-hot encode + StandardScaler
     ├── Split aleatorio 70/30 — ⚠️ fuga temporal
-    ├── Entrena LogisticRegression (clasificación)
+    ├── Entrena LogisticRegression (clasificación) via ml/classification.py
     ├── Entrena RandomForestRegressor (regresión)
-    └── Guarda modelos en apps/backend/ml/models/
-         ├── classification_model.pkl
-         ├── regression_model.pkl
-         ├── label_encoders.pkl
-         └── model_config.pkl
+    └── Guarda modelos en data/models/
+         ├── logistic_regression.joblib
+         ├── crime_regressor.joblib
+         └── preprocessor.joblib
 ```
 
 ## Files
 
 | Archivo | Propósito |
 |---------|-----------|
-| `apps/backend/ml/train.py` | Entrenamiento de modelos (clasificación + regresión) |
-| `apps/backend/ml/predict.py` | Script de predicción standalone (no usado en producción) |
+| `apps/backend/cli/ml_pipeline.py` | Orquestador de entrenamiento (carga datos, entrena, guarda) |
+| `apps/backend/ml/classification.py` | LogisticRegression + RandomForestRegressor |
+| `apps/backend/ml/preprocessing.py` | Feature engineering + Pipeline sklearn (ColumnTransformer) |
 | `apps/backend/api/predict.py` | Endpoint FastAPI `/predict` que sirve los modelos |
-| `apps/backend/ml/models/*.pkl` | Modelos serializados (incluidos en el repo) |
-| `apps/backend/ml/ml_metrics.json` | Métricas de clasificación para el dashboard |
-| `apps/backend/ml/classification_report.txt` | Reporte detallado de clasificación |
-| `apps/backend/ml/regression_report.txt` | Reporte detallado de regresión |
+| `apps/backend/data/models/*.joblib` | Modelos serializados (gitignored, regenerar localmente) |
+| `apps/frontend/public/ml/ml_metrics.json` | Métricas de clasificación para el dashboard |
+| `apps/frontend/public/ml/confusion_matrix.png` | Matriz de confusión (imagen) |
+| `apps/frontend/public/ml/roc_curve.png` | Curva ROC (imagen) |
 
 ---
 
@@ -102,7 +103,7 @@ Real Alto     1,693    10,581     ← FN = 1,693
 ### 1. Fuga Temporal (Time Leakage)
 
 ```python
-# apps/backend/ml/train.py — línea crítica
+# apps/backend/cli/ml_pipeline.py — línea crítica
 X_train, X_test, y_train, y_test = train_test_split(
     X, y, test_size=0.3, random_state=42
 )
@@ -170,19 +171,13 @@ Requiere reestructurar el pipeline: un modelo por (borough, category) o modelos 
 
 ```bash
 cd apps/backend
-python -m venv .venv && source .venv/bin/activate
-pip install -r requirements-ml.txt
 
-# Entrenar modelos
-python ml/train.py
+# Entrenar modelos (desde la raíz del proyecto)
+python -m apps.backend.cli.ml_pipeline
 
-# Probar endpoint
-python -c "
-import requests
-r = requests.post('http://localhost:8000/predict', json={
-    'borough': 'westminster', 'major_category': 'theft and handling',
-    'minor_category': 'theft from shop', 'year': 2016, 'month': 6
-})
-print(r.json())
-"
+# Probar endpoint (requiere API corriendo)
+curl -X POST http://localhost:8000/predict \
+  -H "Content-Type: application/json" \
+  -d '{"borough": "westminster", "major_category": "theft and handling",
+       "minor_category": "theft from shop", "year": 2016, "month": 6}'
 ```

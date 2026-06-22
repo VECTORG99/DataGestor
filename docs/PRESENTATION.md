@@ -70,8 +70,8 @@ cd apps/frontend && npm run dev
 cd apps/backend && uvicorn api.predict:app --reload
 
 # Pipeline ETL completo
-cd apps/backend && python scripts/etl_pipeline.py
+python -m apps.backend.cli.pipeline_dataops
 
 # Solo ML
-cd apps/backend && python ml/train.py
+python -m apps.backend.cli.ml_pipeline
 ```

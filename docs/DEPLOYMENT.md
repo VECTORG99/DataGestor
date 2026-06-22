@@ -3,10 +3,13 @@
 ## Arquitectura de Despliegue
 
 ```
-[GitHub] ──push──→ [GitHub Actions] ──tests──→ [Vercel / Render]
+[GitHub] ──push──→ [GitHub Actions]
                         │
-                        ├── tests.yml: pytest + lint
-                        └── checks.yml: build
+                        └── ci-backend.yml: black + flake8 + pytest
+                        │
+                        ▼
+                  [Vercel] auto-deploy desde main
+                  [Render] auto-deploy desde main
 ```
 
 | Componente | Plataforma | URL | Build |
@@ -91,49 +94,42 @@ Los datos se cargan mediante el pipeline ETL con upsert. El dataset completo tie
 
 ## CI/CD — GitHub Actions
 
-### `tests.yml`
+### `ci-backend.yml` (único workflow)
 ```yaml
-name: Tests
-on: [push, pull_request]
+name: CI Backend
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
 jobs:
-  test:
+  test-lint-backend:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Backend tests
-        working-directory: apps/backend
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: 3.11
+      - name: Install dependencies
         run: |
-          pip install -r requirements.txt
-          pytest tests/ -v
-      - name: Frontend lint
-        working-directory: apps/frontend
-        run: |
-          npm install
-          npm run lint
+          pip install 'black>=25.0,<26' flake8
+          pip install -r apps/backend/requirements.txt
+      - name: Black format check
+        run: black --check apps/backend/
+      - name: Flake8 lint
+        run: flake8 apps/backend/ --max-line-length=100 --exclude=.venv,__pycache__
+      - name: Pytest
+        run: python -m pytest apps/backend/tests/ -v
+        env:
+          SUPABASE_DB_URL: dummy
+          GOOGLE_APPLICATION_CREDENTIALS: dummy
 ```
 
-### `checks.yml`
-```yaml
-name: Build Check
-on: [push, pull_request]
-jobs:
-  build:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Frontend build
-        working-directory: apps/frontend
-        run: |
-          npm install
-          npm run build
-```
+**Nota:** El CI solo cubre el backend. No hay workflow de frontend — Vercel hace build propio al desplegar.
 
 ### Secrets requeridos en GitHub
-Los tests del backend requieren credenciales de Supabase:
-```
-SUPABASE_URL=***
-SUPABASE_KEY=***
-```
+Los tests usan valores dummy (`SUPABASE_DB_URL: dummy`, `GOOGLE_APPLICATION_CREDENTIALS: dummy`) y solo prueban lógica sin conexión real a BD. No se requieren secrets reales para CI.
 
 ---
 
@@ -144,66 +140,49 @@ El pipeline ETL se ejecuta **localmente** (no en producción):
 ```bash
 cd apps/backend
 
-# Modo normal (usa datos existentes en Supabase si hay)
-python scripts/etl_pipeline.py
+# ETL completo (BigQuery → limpia → Supabase)
+python -m apps.backend.cli.pipeline_dataops
 
-# Forzar recarga completa desde BigQuery
-python scripts/etl_pipeline.py --mode production
+# Modo demo (datos sintéticos, sin BigQuery)
+python -m apps.backend.cli.pipeline_dataops --demo
 
-# Solo ML (si la tabla ya tiene datos)
-python ml/train.py
+# Solo ML (entrenar modelos desde Supabase)
+python -m apps.backend.cli.ml_pipeline
 ```
 
 ### Requisitos del pipeline ETL
-1. Credenciales GCP (`google-cloud-bigquery`) — archivo JSON de service account.
-2. Credenciales Supabase — variables de entorno.
-3. Dataset público `london_crime` en BigQuery.
+1. Credenciales GCP (`google-cloud-bigquery`) — archivo JSON de service account (solo para modo no-demo).
+2. Credenciales Supabase — variables de entorno `SUPABASE_URL` y `SUPABASE_KEY`.
+3. Dataset público `bigquery-public-data.london_crime.crime_by_lsoa` en BigQuery.
 
-### Flujo ETL
+### Flujo ETL (detalle por módulo)
 ```
-BigQuery (3M registros LSOA)
-    │
-    ▼
-Limpieza (nulos, meses inválidos, años fuera de rango, negativos, duplicados, normalización)
-    │
-    ▼
-Agregación (GROUP BY borough, major_category, minor_category, year, month)
-    │
-    ▼
-Supabase (upsert ~23K registros agregados)
-    │
-    ▼
-Entrenamiento ML (train.py)
-```
-
----
-
-## Docker (Alternativa Local)
-
-### Frontend
-```dockerfile
-FROM node:18-alpine
-WORKDIR /app
-COPY package*.json ./
-RUN npm install
-COPY . .
-RUN npm run build
-EXPOSE 80
-CMD ["nginx", "-g", "daemon off;"]
-```
-Se sirve con nginx (config en `nginx.conf`).
-
-### Backend
-```dockerfile
-FROM python:3.11-slim
-WORKDIR /app
-COPY requirements.txt .
-RUN pip install -r requirements.txt
-COPY . .
-EXPOSE 8000
-CMD ["uvicorn", "api.predict:app", "--host", "0.0.0.0", "--port", "8000"]
+apps/backend/pipeline/ingestion.py
+    BigQuery → ~3M filas LSOA
+        │
+        ▼
+apps/backend/pipeline/cleaning.py  (clean_and_transform_data)
+    ├── standardize_column_names()   → snake_case
+    ├── handle_null_values()         → elimina filas con nulos críticos
+    ├── validate_data_types()        → int64, float64, string
+    ├── validate_value_ranges()      → meses 1-12, años 2008-2016
+    ├── normalize_text_fields()      → title case, corrige boroughs
+    ├── detect_and_remove_duplicates() → exactos + subset
+    ├── create_date_column()         → year+month → date
+    └── detect_outliers()            → IQR (solo reporta, no elimina)
+        │
+        ▼
+apps/backend/pipeline/loading.py
+    ├── save_clean_data()            → CSV + Parquet local
+    └── load_to_supabase()           → upsert a Supabase
+        │
+        ▼
+apps/backend/cli/ml_pipeline.py
+    ├── apps/backend/ml/preprocessing.py  → features + preprocessor
+    ├── apps/backend/ml/classification.py → LogisticRegression + RandomForestRegressor
+    └── data/models/*.joblib              → modelos serializados
 ```
 
-```bash
-docker-compose up -d  # Levanta frontend + backend localmente
-```
+## Nota sobre contenedores
+
+El proyecto no usa Docker ni docker-compose. El frontend se despliega en Vercel (serverless) y el backend como servicio web en Render. Para desarrollo local, se ejecutan directamente con `npm run dev` y `uvicorn`.

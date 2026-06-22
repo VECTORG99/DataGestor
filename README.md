@@ -25,8 +25,8 @@ Procesa ~3 millones de registros de crimen a nivel LSOA del dataset público de 
 | Backend API | FastAPI (Python) | Render |
 | Base de datos | Supabase (PostgreSQL) | Supabase Cloud |
 | ML | scikit-learn (LogisticRegression + RandomForestRegressor) | Render (mismo servicio) |
-| ETL | Python (google-cloud-bigquery, pandas, numpy) | Local → Scripts |
-| CI/CD | GitHub Actions | tests + checks |
+| ETL | Python (google-cloud-bigquery, pandas, numpy) | Local → CLI |
+| CI/CD | GitHub Actions | `ci-backend.yml` (lint + test) |
 
 ---
 
@@ -39,19 +39,26 @@ Procesa ~3 millones de registros de crimen a nivel LSOA del dataset público de 
 ### Arquitectura del ML
 
 ```
-apps/backend/ml/
-├── train.py              ← Entrenamiento: carga datos de Supabase, entrena y guarda modelos
-├── predict.py            ← No usado directamente (la API está en api/predict.py)
-├── models/
-│   ├── classification_model.pkl    ← LogisticRegression (alta/baja)
-│   ├── regression_model.pkl        ← RandomForestRegressor (conteo estimado)
-│   ├── label_encoders.pkl          ← Encoders para variables categóricas
-│   └── model_config.pkl            ← Config (threshold, features)
-├── ml_metrics.json       ← Métricas de clasificación
-├── classification_report.txt
-└── regression_report.txt
-
-apps/backend/api/predict.py   ← Endpoint FastAPI /predict que carga los modelos y sirve estimaciones
+apps/backend/
+├── cli/
+│   ├── ml_pipeline.py       ← Entrenamiento ML (carga Supabase, entrena, guarda modelos)
+│   └── pipeline_dataops.py  ← ETL completo (BigQuery → limpia → agrega → Supabase → ML)
+├── pipeline/
+│   ├── ingestion.py         ← Lectura desde BigQuery
+│   ├── cleaning.py          ← Limpieza y transformación
+│   ├── loading.py           ← Carga a Supabase + archivos locales
+│   ├── data_stage_manager.py ← Snapshots por etapa
+│   └── metrics.py           ← Colección de métricas del pipeline
+├── ml/
+│   ├── classification.py    ← LogisticRegression (alta/baja)
+│   ├── preprocessing.py     ← Feature engineering + pipeline sklearn
+│   └── ...
+├── api/
+│   └── predict.py           ← Endpoint FastAPI /predict (carga modelos y sirve)
+└── data/models/
+    ├── logistic_regression.joblib    ← LogisticRegression (~1KB)
+    ├── crime_regressor.joblib        ← RandomForestRegressor (~79MB)
+    └── preprocessor.joblib           ← Pipeline de preprocesamiento
 ```
 
 ### Modelo de Clasificación (LogisticRegression)
@@ -86,7 +93,7 @@ apps/backend/api/predict.py   ← Endpoint FastAPI /predict que carga los modelo
 ### Limitación Fundamental
 
 ```python
-# apps/backend/ml/train.py (simplificado)
+# apps/backend/cli/ml_pipeline.py (simplificado)
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42)
 # ↑ NO respeta el orden temporal. Datos de 2015-2016 aparecen en train,
 #   y datos de 2008-2009 aparecen en test.
@@ -109,8 +116,7 @@ Esto significa que el modelo:
 [GitHub] → push a main
     ↓
 [GitHub Actions]
-    ├── tests.yml     → pytest backend, lint frontend
-    └── checks.yml    → build check
+    └── ci-backend.yml   → black + flake8 + pytest (backend)
     ↓
 [Vercel]                          [Render]                     [Supabase]
  ┌──────────────┐               ┌──────────────┐              ┌──────────┐
@@ -129,7 +135,7 @@ Esto significa que el modelo:
 - Servicio Web desde `apps/backend/`
 - Comando: `uvicorn api.predict:app --host 0.0.0.0 --port $PORT`
 - Variables de entorno: `SUPABASE_URL`, `SUPABASE_KEY`, `PYTHON_VERSION=3.11`
-- Los modelos ML (`.pkl`) se generan localmente y están incluidos en el repo en `apps/backend/ml/models/`
+- Los modelos ML (`.joblib`) se generan localmente y se guardan en `apps/backend/data/models/` (incluidos en `.gitignore` — regenerar localmente tras cambios)
 
 ### Base de Datos — Supabase
 - Tabla: `london_crime_aggregated`
@@ -137,28 +143,44 @@ Esto significa que el modelo:
 - Datos precargados (2008-2016)
 
 ### CI/CD — GitHub Actions
-- `.github/workflows/tests.yml`: Ejecuta tests de pytest y linter.
-- `.github/workflows/checks.yml`: Build check del frontend.
-- **No hay despliegue automático** — Vercel y Render detectan cambios en `main` por sí mismos.
+- `.github/workflows/ci-backend.yml`: Corre `black --check`, `flake8` y `pytest` en el backend con cada push/PR a main/master.
+- **No hay CI para frontend** — solo Vercel build automático desde la rama main.
+- **No hay despliegue automático por Actions** — Vercel y Render detectan cambios en `main` por sí mismos.
 
-### Pipeline ETL
+### Pipeline ETL + ML
+
 ```bash
-# Ejecutar localmente (requiere credenciales GCP + Supabase)
-python apps/backend/scripts/etl_pipeline.py
+# ETL completo: BigQuery → limpia → agrega → Supabase
+python -m apps.backend.cli.pipeline_dataops
 
-# O en modo producción forzado
-python apps/backend/scripts/etl_pipeline.py --mode production
+# Modo demo (sin BigQuery, usa datos de muestra)
+python -m apps.backend.cli.pipeline_dataops --demo
 
-# Ejecutar solo ML
-python apps/backend/ml/train.py
+# Solo ML (entrenar modelos desde Supabase)
+python -m apps.backend.cli.ml_pipeline
 ```
 
-El pipeline ETL:
-1. Lee ~3M registros desde BigQuery (dataset público de Londres).
-2. Limpia: elimina nulos, meses inválidos (0 o >12), años fuera de rango (≠2008-2016), valores negativos, duplicados, normaliza mayúsculas.
-3. Agrega: agrupa por (borough, major_category, minor_category, year, month) sumando `total_crimes`.
-4. Carga: upsert a Supabase.
-5. Entrena ML: corre `train.py` y actualiza métricas.
+<details>
+<summary><strong>Detalle del ETL (DataOps)</strong></summary>
+
+**Módulos** en `apps/backend/pipeline/`:
+
+| Módulo | Archivo | Responsabilidad |
+|--------|---------|---------------|
+| Ingestion | `pipeline/ingestion.py` | Lee ~3M registros desde BigQuery o genera datos de muestra en modo demo |
+| Cleaning | `pipeline/cleaning.py` | Estandariza columnas, elimina nulos, valida tipos y rangos, normaliza texto, elimina duplicados, detecta outliers |
+| Loading | `pipeline/loading.py` | Guarda datos limpios como CSV/Parquet local y hace upsert a Supabase |
+| Stage Manager | `pipeline/data_stage_manager.py` | Guarda snapshots de los datos en cada etapa del pipeline (sin modificar el flujo) |
+| Metrics | `pipeline/metrics.py` | Recolecta y exporta métricas de cada etapa a `pipeline_metrics.jsonl` |
+
+**Flujo:**
+1. `Ingestion` → lee desde BigQuery (tabla `bigquery-public-data.london_crime.crime_by_lsoa`, ~3M filas)
+2. `Cleaning` → `clean_and_transform_data()` aplica: snake_case, elimina nulos en columnas críticas, convierte tipos, valida meses (1-12) y años (2008-2016), elimina valores negativos, normaliza mayúsculas/title case, elimina duplicados exactos y por subset, crea columna `date`, opcionalmente remueve outliers vía IQR
+3. `Loading` → `load_to_supabase()` hace upsert de los datos agregados a Supabase; `save_clean_data()` guarda CSV/Parquet localmente
+4. `Metrics` → cada etapa registra duración, registros in/out, reducción %
+5. `ML Pipeline` → `cli.ml_pipeline.py` entrena modelos sobre los datos en Supabase
+
+</details>
 
 ---
 
@@ -169,10 +191,13 @@ El pipeline ETL:
 El modelo actual entrenado con split aleatorio. Sirve como demo del pipeline completo pero **no debe usarse para predicción real**. La documentación y UI son honestas sobre esta limitación.
 
 **Archivos clave:**
-- `apps/backend/ml/train.py` — entrenamiento
-- `apps/backend/ml/models/*.pkl` — modelos serializados
+- `apps/backend/cli/ml_pipeline.py` — entrenamiento de modelos
+- `apps/backend/ml/classification.py` — LogisticRegression + RandomForestRegressor
+- `apps/backend/ml/preprocessing.py` — feature engineering
+- `apps/backend/data/models/*.joblib` — modelos serializados
 - `apps/backend/api/predict.py` — API endpoint
 - `apps/frontend/src/App.jsx` — UI del estimador
+- `apps/frontend/public/ml/ml_metrics.json` — métricas para dashboard
 
 ### Opción B (Recomendada para mejora inmediata) — Split Temporal Correcto
 
@@ -220,41 +245,55 @@ Reemplazar scikit-learn con modelos de series temporales:
 ## Estructura del Proyecto
 
 ```
+```
 DataGestor/
 ├── apps/
-│   ├── frontend/                 # React + Vite + MUI
+│   ├── frontend/                     # React + Vite + MUI
 │   │   ├── src/
-│   │   │   ├── App.jsx          # Dashboard + Estimador
+│   │   │   ├── App.jsx              # Dashboard + Estimador
 │   │   │   └── ...
 │   │   ├── public/
-│   │   │   ├── ml_metrics.json  # Métricas de clasificación
-│   │   │   └── pipeline_stats.json
-│   │   ├── Dockerfile
-│   │   ├── nginx.conf
+│   │   │   ├── ml/
+│   │   │   │   ├── ml_metrics.json  # Métricas de clasificación
+│   │   │   │   ├── confusion_matrix.png
+│   │   │   │   └── roc_curve.png
+│   │   │   ├── pipeline_stats.json  # Estadísticas del pipeline ETL
+│   │   │   └── pipeline_logs.json   # Logs de ejecuciones
 │   │   └── package.json
 │   │
-│   └── backend/                  # FastAPI + ML
+│   └── backend/                      # FastAPI + ML + Pipeline
 │       ├── api/
-│       │   ├── predict.py       # Endpoint /predict
-│       │   └── ...
+│       │   └── predict.py           # Endpoint /predict
+│       ├── cli/
+│       │   ├── pipeline_dataops.py  # ETL BigQuery → Supabase
+│       │   └── ml_pipeline.py       # Entrenamiento de modelos
+│       ├── pipeline/
+│       │   ├── ingestion.py         # Lectura BigQuery
+│       │   ├── cleaning.py          # Limpieza de datos
+│       │   ├── loading.py           # Carga a Supabase
+│       │   ├── data_stage_manager.py # Snapshots por etapa
+│       │   └── metrics.py           # Métricas del pipeline
 │       ├── ml/
-│       │   ├── train.py         # Entrenamiento de modelos
-│       │   ├── models/          # .pkl serializados
-│       │   ├── ml_metrics.json
-│       │   └── requirements-ml.txt
-│       ├── scripts/
-│       │   └── etl_pipeline.py  # ETL BigQuery → Supabase
+│       │   ├── classification.py    # LogisticRegression + RandomForest
+│       │   ├── preprocessing.py     # Feature engineering
+│       │   └── __init__.py
+│       ├── data/models/             # Modelos .joblib (gitignored)
+│       │   ├── logistic_regression.joblib
+│       │   ├── crime_regressor.joblib
+│       │   └── preprocessor.joblib
 │       ├── tests/
-│       │   └── test_predict.py  # Tests del endpoint
-│       ├── requirements.txt
-│       └── Dockerfile
+│       │   ├── test_cleaning.py
+│       │   ├── test_loading.py
+│       │   ├── test_ml.py
+│       │   ├── test_pipeline_dataops.py
+│       │   └── conftest.py
+│       └── requirements.txt
 │
 ├── .github/workflows/
-│   ├── tests.yml
-│   └── checks.yml
+│   └── ci-backend.yml           # black + flake8 + pytest
 │
 ├── docs/
-│   ├── ML_PIPELINE.md       ← Documentación detallada del ML
+│   ├── ML_PIPELINE.md       ← ML detallado
 │   ├── DEPLOYMENT.md        ← Guía de despliegue
 │   ├── ARCHITECTURE.md      ← Diagrama de arquitectura
 │   ├── API.md               ← Referencia de la API
@@ -262,6 +301,7 @@ DataGestor/
 │
 ├── README.md                ← Este archivo
 └── SECURITY.md              ← Política de seguridad
+```
 ```
 
 ---

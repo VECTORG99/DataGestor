@@ -59,7 +59,7 @@ BigQuery (3M LSOA records)
    ▼  google-cloud-bigquery client
 Raw Data (~3M filas)
    │
-   ▼  apps/backend/scripts/etl_pipeline.py
+   ▼  apps/backend/cli/pipeline_dataops.py
 Limpieza:
   ├── Eliminar nulos → ~200K eliminados
   ├── Meses inválidos (0 o >12) → ~5K
@@ -91,7 +91,7 @@ Filtros (client-side):
 
 ```
 Browser → fetch(ML_API_URL + /predict) → FastAPI en Render
-  ├── Carga modelos .pkl al iniciar
+  ├── Carga modelos .joblib al iniciar (data/models/)
   ├── One-hot encode de features
   ├── LogisticRegression → prediction + probabilities
   ├── RandomForestRegressor → predicted_crimes
@@ -117,7 +117,7 @@ Browser → fetch(ML_API_URL + /predict) → FastAPI en Render
 - **CORS:** La API ML tiene `allow_origins=["*"]` (abierto — aceptable para un proyecto demo con datos públicos no sensibles).
 - **Autenticación:** Supabase usa anon key del lado del cliente con Row Level Security (RLS) si está configurado.
 - **Secretos:** Variables de entorno en Vercel / Render / GitHub Secrets. No hay secretos en el código.
-- **Modelos:** Archivos .pkl incluidos en el repo (contienen coeficientes entrenados — sin datos de entrenamiento).
+- **Modelos:** Archivos .joblib en `apps/backend/data/models/` (gitignored — regenerar localmente).
 
 ## Consideraciones de Escalabilidad
 
