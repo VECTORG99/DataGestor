@@ -12,11 +12,11 @@
                   [Render] auto-deploy desde main
 ```
 
-| Componente | Plataforma | URL | Build |
-|-----------|-----------|-----|-------|
-| Frontend (React) | Vercel | `https://london-crime-dashboard.vercel.app` | `npm run build` → `dist/` |
-| Backend ML API | Render | `https://london-crime-api.onrender.com` | `uvicorn api.predict:app` |
-| Base de Datos | Supabase | (cloud) | Pre-cargada |
+| Componente | Plataforma | Config real |
+|---|---|---|
+| Frontend (React) | Vercel | `apps/frontend`, `npm run build` → `dist/` |
+| Backend ML API | Render | `render.yaml` + Dockerfile raíz |
+| Base de Datos | Supabase | tabla `london_crime_aggregated` |
 
 No hay despliegue automático por GitHub Actions. Vercel y Render detectan cambios en `main` mediante sus integraciones nativas.
 
@@ -48,23 +48,21 @@ npx vercel --prod
 ## Backend ML API — Render
 
 ### Configuración
+- **Config:** `render.yaml`
 - **Type:** Web Service
-- **Root directory:** `apps/backend/`
-- **Runtime:** Python 3.11
-- **Build command:** `pip install -r requirements.txt`
-- **Start command:** `uvicorn api.predict:app --host 0.0.0.0 --port $PORT`
+- **Runtime:** Docker (`env: docker`)
+- **Dockerfile:** `Dockerfile` en la raíz
+- **Start command real:** `uvicorn apps.backend.api.predict:app --host 0.0.0.0 --port 8000`
 
 ### Variables de Entorno (Render dashboard)
 ```
-SUPABASE_URL=https://xxxx.supabase.co
-SUPABASE_KEY=eyJxxx
-PYTHON_VERSION=3.11.0
+PORT=8000
 ```
 
 ### Health Check
-Render puede configurar un health check en `GET /health`:
+Render usa `GET /health` desde `render.yaml`:
 ```json
-{"status": "ok", "model_loaded": true}
+{"status": "ok"}
 ```
 
 ---
@@ -114,7 +112,7 @@ jobs:
       - name: Install dependencies
         run: |
           pip install 'black>=25.0,<26' flake8
-          pip install -r apps/backend/requirements.txt
+          pip install -r requirements.txt
       - name: Black format check
         run: black --check apps/backend/
       - name: Flake8 lint
@@ -138,21 +136,19 @@ Los tests usan valores dummy (`SUPABASE_DB_URL: dummy`, `GOOGLE_APPLICATION_CRED
 El pipeline ETL se ejecuta **localmente** (no en producción):
 
 ```bash
-cd apps/backend
-
 # ETL completo (BigQuery → limpia → Supabase)
 python -m apps.backend.cli.pipeline_dataops
 
 # Modo demo (datos sintéticos, sin BigQuery)
 python -m apps.backend.cli.pipeline_dataops --demo
 
-# Solo ML (entrenar modelos desde Supabase)
+# Solo ML (entrenar modelos desde data/processed/london_crime_aggregated.csv)
 python -m apps.backend.cli.ml_pipeline
 ```
 
 ### Requisitos del pipeline ETL
 1. Credenciales GCP (`google-cloud-bigquery`) — archivo JSON de service account (solo para modo no-demo).
-2. Credenciales Supabase — variables de entorno `SUPABASE_URL` y `SUPABASE_KEY`.
+2. Credenciales Supabase — variable `SUPABASE_DB_URL`.
 3. Dataset público `bigquery-public-data.london_crime.crime_by_lsoa` en BigQuery.
 
 ### Flujo ETL (detalle por módulo)
@@ -183,6 +179,18 @@ apps/backend/cli/ml_pipeline.py
     └── data/models/*.joblib              → modelos serializados
 ```
 
-## Nota sobre contenedores
+## Docker / Compose
 
-El proyecto no usa Docker ni docker-compose. El frontend se despliega en Vercel (serverless) y el backend como servicio web en Render. Para desarrollo local, se ejecutan directamente con `npm run dev` y `uvicorn`.
+El proyecto sí incluye contenedores, pero están centralizados:
+
+| Archivo | Uso |
+|---|---|
+| `Dockerfile` | Imagen de producción para Render: instala `requirements.txt`, entrena/verifica modelos y levanta FastAPI |
+| `infra/docker-compose.yml` | Entorno local con backend + frontend |
+| `infra/backend.Dockerfile` | Backend dev interactivo |
+| `infra/frontend.Dockerfile` | Build React + nginx |
+| `infra/nginx.conf` | SPA fallback + gzip + headers básicos |
+
+```bash
+docker compose -f infra/docker-compose.yml up --build
+```

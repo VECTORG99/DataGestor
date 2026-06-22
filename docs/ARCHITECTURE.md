@@ -17,7 +17,7 @@
 │  │                       │                    │                │   │
 │  │              ┌────────▼────┐      ┌────────▼────────┐      │   │
 │  │              │  Supabase   │      │  ML API URL     │      │   │
-│  │              │  (JS SDK)   │      │  (fetch /fetch)  │      │   │
+│  │              │  (JS SDK)   │      │  (fetch /predict)│      │   │
 │  │              └─────────────┘      └─────────────────┘      │   │
 │  └─────────────────────────────────────────────────────────────┘   │
 └─────────────────────────────────────────────────────────────────────┘
@@ -42,9 +42,9 @@
 ┌──────────────────────────────────┐   │  │ │ │ Forest     │  │  │  │
 │  PIPELINE ETL (Local)           │   │  │ │ │ Regressor  │  │  │  │
 │  ┌────────────────────────────┐  │   │  │ │ ├────────────┤  │  │  │
-│  │ BigQuery → Clean →        │  │   │  │ │ │ Encoders   │  │  │  │
-│  │ Aggregate → Supabase       │  │   │  │ │ └────────────┘  │  │  │
-│  │ → Train ML                 │  │   │  │ └─────────────────┘  │  │
+│  │ BigQuery → Clean → CSV     │  │   │  │ │ │ Encoders   │  │  │  │
+│  │ CSV → Supabase             │  │   │  │ │ └────────────┘  │  │  │
+│  │ CSV → Train ML             │  │   │  │ └─────────────────┘  │  │
 │  └────────────────────────────┘  │   │  └───────────────────────┘  │
 └──────────────────────────────────┘   └──────────────────────────────┘
 ```
@@ -71,8 +71,8 @@ Limpieza:
    ▼  GROUP BY (borough, major_category, minor_category, year, month)
 Agregación (~23K filas agregadas)
    │
-   ▼  upsert a Supabase
-Supabase (london_crime_aggregated)
+   ├── save CSV/Parquet en data/processed/
+   └── upsert a Supabase (london_crime_aggregated)
 ```
 
 ### 2. Frontend → Datos (lectura)
@@ -102,8 +102,8 @@ Browser → fetch(ML_API_URL + /predict) → FastAPI en Render
 
 | Capa | Tecnología | Versión |
 |------|-----------|---------|
-| Frontend | React + Vite | React 18, Vite 5 |
-| UI | MUI (Material-UI) | v5 |
+| Frontend | React + Vite | Vite 8 |
+| UI | MUI (Material-UI) | v9 |
 | Charts | Chart.js + react-chartjs-2 | v4 |
 | Backend | FastAPI | Python 3.11 |
 | ML | scikit-learn | 1.3+ |
@@ -117,7 +117,7 @@ Browser → fetch(ML_API_URL + /predict) → FastAPI en Render
 - **CORS:** La API ML tiene `allow_origins=["*"]` (abierto — aceptable para un proyecto demo con datos públicos no sensibles).
 - **Autenticación:** Supabase usa anon key del lado del cliente con Row Level Security (RLS) si está configurado.
 - **Secretos:** Variables de entorno en Vercel / Render / GitHub Secrets. No hay secretos en el código.
-- **Modelos:** Archivos .joblib en `apps/backend/data/models/` (gitignored — regenerar localmente).
+- **Modelos:** Archivos .joblib en `data/models/` (regenerables localmente).
 
 ## Consideraciones de Escalabilidad
 

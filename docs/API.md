@@ -6,13 +6,12 @@ Base URL: `https://london-crime-api.onrender.com` (producción) o `http://localh
 
 ## `GET /health`
 
-Verifica que el servicio y los modelos estén cargados.
+Verifica que el servicio responde. No carga los modelos.
 
 **Response:**
 ```json
 {
-  "status": "ok",
-  "model_loaded": true
+  "status": "ok"
 }
 ```
 
@@ -48,16 +47,12 @@ Estima el perfil histórico de criminalidad para una combinación de distrito, c
 
 ```json
 {
-  "borough": "westminster",
-  "major_category": "theft and handling",
-  "minor_category": "theft from shop",
-  "year": 2016,
-  "month": 6,
   "prediction": 1,
   "probability_high": 0.8234,
   "probability_low": 0.1766,
   "predicted_crimes": 42,
   "predicted_crimes_raw": 42.37,
+  "threshold": 0.5,
   "features_used": 120
 }
 ```
@@ -69,6 +64,7 @@ Estima el perfil histórico de criminalidad para una combinación de distrito, c
 | `probability_low` | float | Probabilidad de baja incidencia (0-1) |
 | `predicted_crimes` | integer | Número estimado de crímenes (redondeado) |
 | `predicted_crimes_raw` | float | Número estimado de crímenes (sin redondear) |
+| `threshold` | float | Umbral de clasificación usado por la API |
 | `features_used` | integer | Dimensiones de feature vector |
 
 ### Códigos de Error
@@ -77,7 +73,8 @@ Estima el perfil histórico de criminalidad para una combinación de distrito, c
 |--------|-------------|
 | 400 | Missing required field o invalid value |
 | 422 | Validation error (formato incorrecto) |
-| 500 | Model not loaded o internal error |
+| 503 | Model artifacts missing o no cargables |
+| 500 | Internal error no controlado |
 
 ### Ejemplo con curl
 

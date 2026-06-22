@@ -9,12 +9,12 @@
 ## Arquitectura del ML
 
 ```
-Supabase (datos agregados)
+data/processed/london_crime_aggregated.csv
     │
     ▼
 apps/backend/cli/ml_pipeline.py
     │
-    ├── Carga datos desde Supabase (london_crime_aggregated)
+    ├── Carga CSV procesado desde data/processed/
     ├── Usa apps/backend/ml/preprocessing.py → features + preprocessor sklearn Pipeline
     ├── Crea target_binary: 1 si total_crimes > mediana (3), 0 si no
     ├── One-hot encode + StandardScaler
@@ -35,7 +35,7 @@ apps/backend/cli/ml_pipeline.py
 | `apps/backend/ml/classification.py` | LogisticRegression + RandomForestRegressor |
 | `apps/backend/ml/preprocessing.py` | Feature engineering + Pipeline sklearn (ColumnTransformer) |
 | `apps/backend/api/predict.py` | Endpoint FastAPI `/predict` que sirve los modelos |
-| `apps/backend/data/models/*.joblib` | Modelos serializados (gitignored, regenerar localmente) |
+| `data/models/*.joblib` | Modelos serializados (regenerables localmente) |
 | `apps/frontend/public/ml/ml_metrics.json` | Métricas de clasificación para el dashboard |
 | `apps/frontend/public/ml/confusion_matrix.png` | Matriz de confusión (imagen) |
 | `apps/frontend/public/ml/roc_curve.png` | Curva ROC (imagen) |
@@ -170,9 +170,7 @@ Requiere reestructurar el pipeline: un modelo por (borough, category) o modelos 
 ## Entrenamiento Local
 
 ```bash
-cd apps/backend
-
-# Entrenar modelos (desde la raíz del proyecto)
+# Ejecutar desde la raíz del proyecto
 python -m apps.backend.cli.ml_pipeline
 
 # Probar endpoint (requiere API corriendo)
