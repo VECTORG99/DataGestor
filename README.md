@@ -1,25 +1,41 @@
 # London Crime Data Platform
 
-Dashboard de crimen de Londres + estimador histórico basado en ML.
+> **Dashboard analítico + estimador histórico de criminalidad para Londres (2008-2016).**  
+> No es un predictor del futuro. Es un sistema de análisis que estima perfiles históricos de crimen basados en datos reales.
 
-> El modelo **no predice el futuro**. Estima perfiles históricos aprendidos del dataset 2008-2016. La limitación está documentada porque el split actual es aleatorio 70/30 y puede inflar métricas.
+---
 
-## Qué incluye
+## ¿Qué hace este proyecto?
 
-| Área | Qué hay |
-|---|---|
-| Dashboard | React + Vite + MUI + Chart.js |
-| Datos | Supabase/PostgreSQL con tabla `london_crime_aggregated` |
-| DataOps | BigQuery → limpieza → carga Supabase → métricas |
-| ML | LogisticRegression + RandomForestRegressor |
-| API | FastAPI en Render, endpoint `POST /predict` |
-| CI | GitHub Actions backend: black + flake8 + pytest |
-| Infra | Render Docker deploy + Docker Compose local en `infra/` |
+Procesa ~3 millones de registros de crimen a nivel LSOA del dataset público de la Policía Metropolitana de Londres y los transforma en:
 
-## Arquitectura rápida
+1. **Dashboard interactivo** — visualizaciones por distrito, categoría, tendencia temporal, exportación a Excel.
+2. **Pipeline DataOps/ETL** — extracción desde BigQuery, limpieza, validación, agregación, snapshots, métricas y carga a Supabase.
+3. **Estimador ML histórico** — dado un distrito, categoría, mes y año, estima cuántos crímenes cabría esperar según el perfil histórico aprendido.
+
+**Importante:** Este sistema **NO predice el futuro**. El modelo ML actual se entrena con un split aleatorio 70/30 sobre datos históricos, lo que puede introducir fuga temporal e inflar métricas. Para predicción real, ver [Opciones de evolución](#opciones-de-evolución).
+
+---
+
+## Stack tecnológico
+
+| Capa | Tecnología | Configuración real |
+|---|---|---|
+| Frontend | React + Vite + MUI + Chart.js | `apps/frontend`, deploy en Vercel |
+| Backend API | FastAPI + Uvicorn | `apps/backend/api/predict.py`, deploy en Render |
+| Base de datos | Supabase/PostgreSQL | tabla `london_crime_aggregated` |
+| DataOps | Python + pandas + BigQuery + SQLAlchemy | `apps/backend/cli/pipeline_dataops.py` |
+| ML | scikit-learn | `apps/backend/cli/ml_pipeline.py` |
+| Modelos | joblib | `data/models/*.joblib` |
+| CI | GitHub Actions | `.github/workflows/ci-backend.yml` |
+| Infra | Docker + Compose + nginx | `Dockerfile`, `render.yaml`, `infra/` |
+
+---
+
+## Arquitectura general
 
 ```text
-BigQuery london_crime
+BigQuery: bigquery-public-data.london_crime.crime_by_lsoa
         │
         ▼
 apps/backend/cli/pipeline_dataops.py
@@ -27,107 +43,212 @@ apps/backend/cli/pipeline_dataops.py
         ├── pipeline/ingestion.py
         ├── pipeline/cleaning.py
         ├── pipeline/loading.py
+        ├── pipeline/data_stage_manager.py
         └── pipeline/metrics.py
         │
-        ▼
-data/processed/london_crime_aggregated.csv ──→ ML pipeline → data/models/*.joblib
+        ├── data/processed/london_crime_aggregated.csv
+        ├── Supabase: london_crime_aggregated
+        └── data/metrics/pipeline_metrics.jsonl
+                │
+                ▼
+apps/backend/cli/ml_pipeline.py
         │
-        └── Supabase: london_crime_aggregated ──→ Frontend React/Vercel
+        ├── data/models/logistic_regression.joblib
+        ├── data/models/crime_regressor.joblib
+        └── data/models/preprocessor.joblib
+                │
+                ▼
+apps/backend/api/predict.py  ──→  Frontend React/Vercel
 ```
 
-## ML actual
+---
 
-El estimador usa dos modelos entrenados por `apps/backend/cli/ml_pipeline.py` desde `data/processed/london_crime_aggregated.csv`:
+## ML — Estimador histórico
 
-| Modelo | Archivo | Salida |
-|---|---|---|
-| `LogisticRegression` | `data/models/logistic_regression.joblib` | incidencia alta/baja |
-| `RandomForestRegressor` | `data/models/crime_regressor.joblib` | delitos estimados |
-| Preprocessor sklearn | `data/models/preprocessor.joblib` | one-hot + escalado |
+### Qué hace realmente
 
-Inputs del modelo: `borough`, `major_category`, `minor_category`, `year`, `month_sin`, `month_cos`.
+El modelo aprende el perfil histórico del dataset 2008-2016. Con los inputs `borough`, `major_category`, `minor_category`, `year` y `month`, devuelve:
 
-Limitación clave: el entrenamiento usa split aleatorio, no temporal. Por eso las métricas actuales describen desempeño histórico interno, no capacidad real de predecir años futuros.
+- clasificación de incidencia alta/baja;
+- probabilidad de alta/baja;
+- estimación numérica de crímenes mensuales.
 
-## DevOps / DataOps real
+No extrapola de forma confiable fuera del rango histórico.
 
-| Componente | Ruta/config real |
+### Archivos ML reales
+
+| Archivo | Rol |
 |---|---|
-| Render | `render.yaml` (`env: docker`, `healthCheckPath: /health`) |
-| Docker API | `Dockerfile` |
-| Docker local | `infra/docker-compose.yml` |
-| Docker backend dev | `infra/backend.Dockerfile` |
-| Docker frontend | `infra/frontend.Dockerfile` + `infra/nginx.conf` |
-| CI backend | `.github/workflows/ci-backend.yml` |
-| Requirements | `requirements.txt` en la raíz |
-| Env ejemplo | `config/.env.example` |
+| `apps/backend/cli/ml_pipeline.py` | Orquesta entrenamiento y guardado de modelos |
+| `apps/backend/ml/preprocessing.py` | Carga CSV procesado, crea target y preprocessor sklearn |
+| `apps/backend/ml/classification.py` | Entrena/evalúa LogisticRegression y RandomForestRegressor |
+| `apps/backend/api/predict.py` | Carga modelos y sirve `POST /predict` |
+| `data/models/logistic_regression.joblib` | Clasificador alta/baja |
+| `data/models/crime_regressor.joblib` | Regresor de número de crímenes |
+| `data/models/preprocessor.joblib` | Transformación de features para inferencia |
 
-Variables importantes:
+### Modelo de clasificación
+
+- **Algoritmo:** `LogisticRegression`
+- **Objetivo:** clasificar incidencia alta (`1`) o baja (`0`).
+- **Target:** `target_binary = total_crimes > median(total_crimes)`.
+- **Features:** `borough`, `major_category`, `minor_category`, `year`, `month_sin`, `month_cos`.
+- **Limitación:** split aleatorio 70/30, no split temporal.
+
+### Modelo de regresión
+
+- **Algoritmo:** `RandomForestRegressor`
+- **Objetivo:** estimar `predicted_crimes`.
+- **Mismas features** que el clasificador.
+- **Salida API:** `predicted_crimes` redondeado y `predicted_crimes_raw` sin redondear.
+
+### Limitación fundamental
+
+```python
+# Simplificado: split aleatorio, no temporal
+X_train, X_test, y_train, y_test = train_test_split(
+    X, y, test_size=0.3, random_state=42
+)
+```
+
+Esto significa que el modelo puede evaluar datos antiguos habiendo aprendido patrones de años posteriores. Las métricas describen desempeño histórico interno, no predicción futura real.
+
+---
+
+## DataOps / ETL
+
+### Entrypoint
+
+```bash
+python -m apps.backend.cli.pipeline_dataops
+```
+
+### Modo demo
+
+```bash
+python -m apps.backend.cli.pipeline_dataops --demo
+```
+
+### Flujo DataOps
+
+| Etapa | Módulo | Qué hace |
+|---|---|---|
+| Ingesta | `pipeline/ingestion.py` | Lee BigQuery o genera muestra demo |
+| Limpieza | `pipeline/cleaning.py` | Estandariza columnas, valida tipos/rangos, elimina nulos/duplicados, normaliza texto |
+| Validación | `pipeline/data_stage_manager.py` | Guarda snapshots y reportes por etapa |
+| Persistencia local | `pipeline/loading.py` | Guarda CSV/Parquet en `data/processed/` |
+| Carga Supabase | `pipeline/loading.py` | `load_to_supabase()` usa `SUPABASE_DB_URL` |
+| Métricas | `pipeline/metrics.py` | Exporta `pipeline_metrics.jsonl` |
+
+### Variables DataOps
 
 | Variable | Uso |
 |---|---|
-| `VITE_SUPABASE_URL` | Frontend |
-| `VITE_SUPABASE_ANON_KEY` | Frontend |
-| `VITE_ML_API_URL` | Frontend → FastAPI |
-| `SUPABASE_DB_URL` | Pipeline backend/DataOps |
-| `GOOGLE_APPLICATION_CREDENTIALS` | BigQuery |
+| `SUPABASE_DB_URL` | Conexión PostgreSQL/Supabase para carga de datos |
+| `GOOGLE_APPLICATION_CREDENTIALS` | Credenciales GCP para BigQuery |
+| `BIGQUERY_ROW_LIMIT` | Límite de registros a leer |
+| `SUPABASE_TABLE_NAME` | Tabla destino, por defecto `london_crime_aggregated` |
 
-## Ejecutar local
+---
 
-Desde la raíz del repo:
+## DevOps / CI/CD
 
-```bash
-# Dependencias Python
-python -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
+### Render
 
-# API ML
-uvicorn apps.backend.api.predict:app --reload
+Render usa `render.yaml`:
+
+```yaml
+services:
+  - type: web
+    name: datagestor-ml-api
+    env: docker
+    healthCheckPath: /health
 ```
 
-Frontend:
+La imagen de producción se construye con el `Dockerfile` de la raíz. Ese Dockerfile instala `requirements.txt`, copia el proyecto, ejecuta/verifica el pipeline ML y levanta:
 
 ```bash
-cd apps/frontend
+uvicorn apps.backend.api.predict:app --host 0.0.0.0 --port 8000
+```
+
+### Vercel
+
+Frontend React/Vite desde `apps/frontend`:
+
+```bash
 npm install
-npm run dev
+npm run build
 ```
 
-Pipeline/DataOps:
+Variables frontend:
 
-```bash
-# ETL demo sin BigQuery
-python -m apps.backend.cli.pipeline_dataops --demo
+| Variable | Uso |
+|---|---|
+| `VITE_SUPABASE_URL` | URL pública de Supabase |
+| `VITE_SUPABASE_ANON_KEY` | anon key de Supabase |
+| `VITE_ML_API_URL` | URL de FastAPI/Render |
 
-# ETL real BigQuery → Supabase
-python -m apps.backend.cli.pipeline_dataops
+### GitHub Actions
 
-# Entrenar modelos ML
-python -m apps.backend.cli.ml_pipeline
-```
+Workflow real: `.github/workflows/ci-backend.yml`
 
-Docker local:
+Corre en push/PR a `main` o `master`:
+
+1. Python 3.11
+2. `pip install -r requirements.txt`
+3. `black --check apps/backend/`
+4. `flake8 apps/backend/`
+5. `python -m pytest apps/backend/tests/ -v`
+
+### Docker local
+
+| Archivo | Uso |
+|---|---|
+| `Dockerfile` | Producción API en Render |
+| `infra/docker-compose.yml` | Backend + frontend local |
+| `infra/backend.Dockerfile` | Contenedor backend/dev |
+| `infra/frontend.Dockerfile` | Build React + nginx |
+| `infra/nginx.conf` | SPA fallback + gzip + headers básicos |
 
 ```bash
 docker compose -f infra/docker-compose.yml up --build
 ```
 
+---
+
 ## API
 
-```bash
-curl -X POST http://localhost:8000/predict \
-  -H "Content-Type: application/json" \
-  -d '{
-    "borough": "westminster",
-    "major_category": "theft and handling",
-    "minor_category": "theft from shop",
-    "year": 2016,
-    "month": 6
-  }'
+### Health
+
+```http
+GET /health
 ```
 
 Respuesta real:
+
+```json
+{"status": "ok"}
+```
+
+### Estimación
+
+```http
+POST /predict
+```
+
+Request:
+
+```json
+{
+  "borough": "westminster",
+  "major_category": "theft and handling",
+  "minor_category": "theft from shop",
+  "year": 2016,
+  "month": 6
+}
+```
+
+Response:
 
 ```json
 {
@@ -141,22 +262,90 @@ Respuesta real:
 }
 ```
 
-## Mejoras futuras
+---
+
+## Ejecutar localmente
+
+### Backend/API
+
+```bash
+python -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+uvicorn apps.backend.api.predict:app --reload
+```
+
+### Frontend
+
+```bash
+cd apps/frontend
+npm install
+npm run dev
+```
+
+### Pipeline y ML
+
+```bash
+# Desde la raíz del repo
+python -m apps.backend.cli.pipeline_dataops --demo
+python -m apps.backend.cli.pipeline_dataops
+python -m apps.backend.cli.ml_pipeline
+```
+
+---
+
+## Estructura del proyecto
+
+```text
+DataGestor/
+├── apps/
+│   ├── frontend/                 # React + Vite
+│   │   ├── src/App.jsx           # Dashboard + estimador
+│   │   └── public/               # métricas/logs para dashboard
+│   └── backend/
+│       ├── api/predict.py        # FastAPI /health y /predict
+│       ├── cli/                  # entrypoints DataOps/ML
+│       ├── pipeline/             # ingestion, cleaning, loading, metrics
+│       ├── ml/                   # preprocessing + modelos sklearn
+│       └── tests/                # pytest
+├── config/.env.example           # variables ejemplo
+├── data/
+│   ├── processed/                # CSV/Parquet procesados
+│   ├── metrics/                  # métricas DataOps/ML
+│   └── models/                   # modelos joblib
+├── infra/                        # Docker Compose, Dockerfiles dev, nginx
+├── .github/workflows/ci-backend.yml
+├── render.yaml
+├── Dockerfile
+├── requirements.txt
+├── docs/
+└── README.md
+```
+
+---
+
+## Opciones de evolución
+
+### Opción A — actual
+
+Mantener el estimador histórico, documentando que no predice futuro.
 
 ### Opción B — split temporal correcto
 
-Entrenar con años antiguos y evaluar en años posteriores:
+Cambiar evaluación a entrenamiento histórico y test futuro:
 
 ```python
 train = df[df["year"] <= 2014]
 test = df[df["year"] >= 2015]
 ```
 
-Añadir `lag_1`, `lag_12`, rolling averages y evaluación walk-forward.
+Añadir `lag_1`, `lag_12`, rolling averages y walk-forward validation.
 
 ### Opción C — predicción real
 
-Migrar a Prophet, SARIMA o LSTM para predecir 2017+ con series temporales reales por distrito/categoría.
+Migrar a Prophet, SARIMA o LSTM para series temporales y predicción 2017+ por distrito/categoría.
+
+---
 
 ## Documentación
 
@@ -167,11 +356,15 @@ Migrar a Prophet, SARIMA o LSTM para predecir 2017+ con series temporales reales
 - [`docs/PRESENTATION.md`](docs/PRESENTATION.md)
 - [`SECURITY.md`](SECURITY.md)
 
+---
+
 ## Tests
 
 ```bash
 PYTHONPATH=. python -m pytest apps/backend/tests/ -v
 ```
+
+---
 
 ## Licencia
 
