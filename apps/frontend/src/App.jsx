@@ -742,12 +742,12 @@ export default function App() {
       {/* ML Insights Section */}
       <Box sx={{ mt: 6, mb: 2 }}>
         <Typography variant="h5" fontWeight="bold" gutterBottom align="center">
-          ML Insights — Clasificación de Criminalidad
+          ML Insights — Perfil Histórico de Criminalidad
         </Typography>
         {mlMetrics && (
           <>
             <Typography variant="subtitle2" align="center" color="text.secondary" gutterBottom>
-              Modelo: {mlMetrics.model} — Predice si un crimen es "alto" (&gt;mediana) o "bajo"
+              Modelo: {mlMetrics.model} — Estima si la incidencia supera la mediana histórica global (3 delitos/mes)
             </Typography>
             <Grid container spacing={2} sx={{ mb: 3 }}>
               {[
@@ -821,13 +821,13 @@ export default function App() {
         )}
       </Box>
 
-      {/* Interactive Predictor */}
+      {/* Historical Estimator */}
       <Paper sx={{ p: 2, mb: 4 }}>
         <Typography variant="h6" gutterBottom fontWeight="bold">
-          Predictor Interactivo — Delitos Estimados e Incidencia
+          Estimador Histórico — Delitos Estimados e Incidencia
         </Typography>
         <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-          Selecciona distrito, categoría, mes y año para estimar delitos mensuales y clasificar la incidencia.
+          Selecciona distrito, categoría, mes y año para estimar el perfil histórico de delitos. Esto NO es una predicción del futuro: el modelo aprende patrones del dataset histórico y estima cuántos delitos cabría esperar según el perfil aprendido. Los datos cubren 2008-2016.
         </Typography>
 
         <Grid container spacing={2} alignItems="flex-end">
@@ -906,7 +906,7 @@ export default function App() {
                 }
               }}
             >
-              {predLoading ? <CircularProgress size={18} /> : "Predecir"}
+              {predLoading ? <CircularProgress size={18} /> : "Estimar"}
             </Button>
           </Grid>
         </Grid>
@@ -935,9 +935,12 @@ export default function App() {
                 <Typography variant="h6" fontWeight="bold">{predResult.features_used}</Typography>
               </Box>
             </Box>
-            <Alert severity="info" sx={{ mt: 2 }}>
-              La estimación de delitos usa un modelo de regresión. Alta/Baja es una clasificación aparte:
-              Alta significa que el caso supera la mediana histórica global del dataset, que es 3 delitos mensuales.
+            <Alert severity="warning" sx={{ mt: 2 }}>
+              <strong>Limitación importante:</strong> El modelo se entrenó con un split aleatorio 70/30, no
+              respetando el orden temporal. Esto significa que "aprende" de datos futuros para estimar datos pasados,
+              inflando artificialmente las métricas de accuracy (~89%) y R² (~0.94). En un escenario real de
+              predicción futura, el rendimiento sería significativamente menor. La estimación refleja el perfil
+              histórico aprendido, no una proyección hacia adelante.
             </Alert>
             {/* Probability bar */}
             <Box sx={{ mt: 1, width: "100%", bgcolor: "#e0e0e0", borderRadius: 1, height: 20, position: "relative", overflow: "hidden" }}>

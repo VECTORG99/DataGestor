@@ -16,7 +16,7 @@ if str(PROJECT_ROOT) not in sys.path:
 
 MODELS_DIR = PROJECT_ROOT / "data" / "models"
 
-app = FastAPI(title="London Crime ML Predictor", version="0.1")
+app = FastAPI(title="London Crime Historical Estimator", version="0.1")
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 
 # Lazy-load model + preprocessor
