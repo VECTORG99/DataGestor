@@ -71,6 +71,7 @@ const NAV_ITEMS = [
   { id: "dashboard", label: "Dashboard" },
   { id: "data", label: "Datos" },
   { id: "ml", label: "ML Insights" },
+  { id: "ml-estimator", label: "Estimador Histórico" },
 ];
 const CHART_TABS = [
   { id: "overview", label: "Resumen" },
@@ -1026,6 +1027,9 @@ export default function App() {
           <Alert severity="info">Ejecuta el pipeline de ML para ver métricas de clasificación.</Alert>
         )}
       </Box>
+            </Box>
+
+            <Box sx={{ display: activePage === "ml-estimator" ? "block" : "none" }}>
 
       {/* Historical Estimator */}
       <Paper sx={{ p: 2, mb: 4 }}>
