@@ -1,6 +1,5 @@
 """FastAPI predict endpoint for Logistic Regression crime classifier."""
 
-import os
 import sys
 from pathlib import Path
 
@@ -67,15 +66,19 @@ def predict(input_data: PredictInput):
         raise HTTPException(status_code=503, detail=str(e))
 
     # Build single-row DataFrame with cyclical month
-    raw = pd.DataFrame([{
-        "borough": input_data.borough,
-        "major_category": input_data.major_category,
-        "minor_category": input_data.minor_category,
-        "year": input_data.year,
-        "month": input_data.month,
-        "month_sin": np.sin(2 * np.pi * input_data.month / 12),
-        "month_cos": np.cos(2 * np.pi * input_data.month / 12),
-    }])
+    raw = pd.DataFrame(
+        [
+            {
+                "borough": input_data.borough,
+                "major_category": input_data.major_category,
+                "minor_category": input_data.minor_category,
+                "year": input_data.year,
+                "month": input_data.month,
+                "month_sin": np.sin(2 * np.pi * input_data.month / 12),
+                "month_cos": np.cos(2 * np.pi * input_data.month / 12),
+            }
+        ]
+    )
 
     feature_cols = ["borough", "major_category", "minor_category", "year", "month_sin", "month_cos"]
     X = raw[feature_cols]

@@ -24,7 +24,7 @@ jobs:
       - name: Run black
         run: black --check apps/backend/
       - name: Run flake8
-        run: flake8 apps/backend/ --max-line-length=100
+        run: flake8 apps/backend/ --max-line-length=100 --exclude=.venv,__pycache__
       - name: Run pytest
         run: |
           python -m pytest apps/backend/tests/ -v

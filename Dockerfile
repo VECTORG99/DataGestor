@@ -12,8 +12,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy code + data + models
 COPY . .
 
-# Train model during build if missing
-RUN python apps/backend/cli/ml_pipeline.py || true
+# Verify/train model during build
+RUN python apps/backend/cli/ml_pipeline.py
 
 # Start FastAPI
 CMD ["uvicorn", "apps.backend.api.predict:app", "--host", "0.0.0.0", "--port", "8000"]

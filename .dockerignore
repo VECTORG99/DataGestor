@@ -1,7 +1,16 @@
 node_modules
 .git
+.venv
+**/.venv
 __pycache__
 *.pyc
 .env
 config/credentials.json
-data/
+data/*
+!data/processed/
+data/processed/*
+!data/processed/london_crime_aggregated.csv
+!data/models/
+data/models/*
+!data/models/logistic_regression.joblib
+!data/models/preprocessor.joblib
