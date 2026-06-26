@@ -1069,7 +1069,7 @@ export default function App() {
                   <Typography variant="subtitle2" gutterBottom fontWeight="bold" sx={{ mb: 2 }}>
                     Curva ROC — Receiver Operating Characteristic
                   </Typography>
-                  <Box sx={{ position: "relative", width: "100%", maxWidth: 800, mx: "auto" }}>
+                  <Box sx={{ position: "relative", width: "100%", mx: "auto" }}>
                     <svg viewBox="0 0 500 440" style={{ width: "100%", height: "auto", display: "block" }}>
                       <defs>
                         <clipPath id="plotArea">
