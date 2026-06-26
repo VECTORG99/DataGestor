@@ -5,7 +5,7 @@
       "stage": "crudos",
       "label": "Datos Crudos (BigQuery)",
       "description": "Registros a nivel LSOA (~1500 hab. cada uno) del dataset público de Londres",
-      "records": "~3,000,000",
+      "records": "~150",
       "note": "Cada fila representa un crimen-reportado por LSOA, mes, año y categoría"
     },
     {
@@ -25,7 +25,7 @@
       "stage": "agregacion",
       "label": "Agregación",
       "description": "Los registros LSOA se agrupan por (borough, major_category, minor_category, year, month) y se suman los valores",
-      "records_out": "77,524",
+      "records_out": "146",
       "note": "Cada fila ya no es un LSOA individual, sino la suma total de crímenes para ese grupo"
     },
     {

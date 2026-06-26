@@ -1,6 +1,80 @@
 {
   "production_runs": [
     {
+      "run_id": "2026-06-26",
+      "mode": "Demo",
+      "duration_seconds": 0.1,
+      "stages": [
+        {
+          "stage": "ingesta",
+          "duration_s": 0.02,
+          "records_out": 150
+        },
+        {
+          "stage": "limpieza",
+          "duration_s": 0.03,
+          "records_in": 150,
+          "records_out": 146,
+          "reduction_pct": 2.7
+        },
+        {
+          "stage": "validacion",
+          "duration_s": 0.0
+        },
+        {
+          "stage": "guardado",
+          "duration_s": 0.0
+        },
+        {
+          "stage": "carga_supabase",
+          "duration_s": 0.0
+        }
+      ],
+      "total_records_in": 150,
+      "total_records_out": 146,
+      "completeness_pct": 100.0,
+      "warnings_count": 0,
+      "peak_memory_mb": 139.5,
+      "avg_cpu_percent": 225.8
+    },
+    {
+      "run_id": "2026-06-26",
+      "mode": "Demo",
+      "duration_seconds": 0.1,
+      "stages": [
+        {
+          "stage": "ingesta",
+          "duration_s": 0.02,
+          "records_out": 150
+        },
+        {
+          "stage": "limpieza",
+          "duration_s": 0.03,
+          "records_in": 150,
+          "records_out": 146,
+          "reduction_pct": 2.7
+        },
+        {
+          "stage": "validacion",
+          "duration_s": 0.0
+        },
+        {
+          "stage": "guardado",
+          "duration_s": 0.0
+        },
+        {
+          "stage": "carga_supabase",
+          "duration_s": 0.0
+        }
+      ],
+      "total_records_in": 150,
+      "total_records_out": 146,
+      "completeness_pct": 100.0,
+      "warnings_count": 0,
+      "peak_memory_mb": 139.5,
+      "avg_cpu_percent": 225.8
+    },
+    {
       "run_id": "2026-06-21T07:18:33",
       "mode": "Produccion",
       "duration_seconds": 363.8,
