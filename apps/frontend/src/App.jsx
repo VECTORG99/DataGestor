@@ -950,7 +950,7 @@ export default function App() {
 
             </Box>
 
-            <Box sx={{ display: activePage === "ml" ? "block" : "none" }}>
+            <Box sx={{ display: activePage === "ml" ? "block" : "none", overflowX: "auto" }}>
       {/* ML Insights Section */}
       <Box sx={{ mt: 6, mb: 2 }}>
         <Typography variant="h5" fontWeight="bold" gutterBottom align="center">
@@ -1065,7 +1065,7 @@ export default function App() {
                 </Paper>
               </Grid>
               <Grid item xs={12} md={12}>
-                <Paper sx={{ p: 2, textAlign: "center" }}>
+                <Paper sx={{ p: 2, textAlign: "center", minWidth: { md: 700 } }}>
                   <Typography variant="subtitle2" gutterBottom fontWeight="bold">
                     Curva ROC — Receiver Operating Characteristic
                   </Typography>
