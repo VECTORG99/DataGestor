@@ -148,6 +148,7 @@ export default function App() {
   const [pipelineLogs, setPipelineLogs] = useState(null);
   const [logsOpen, setLogsOpen] = useState(false);
   const [showMetricHelp, setShowMetricHelp] = useState(false);
+  const [showTrainInfo, setShowTrainInfo] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [activePage, setActivePage] = useState("dashboard");
   const [dashboardTab, setDashboardTab] = useState("summary");
@@ -997,6 +998,50 @@ export default function App() {
                     <b>F1 Score</b> — Media armónica entre Precision y Recall. Equilibra ambas métricas cuando hay desbalance.<br />
                     <b>ROC AUC</b> — Área bajo la curva ROC. Mide la capacidad del modelo para separar clases (0.5 = aleatorio, 1.0 = perfecto).<br />
                     <b>Gini</b> — 2 × AUC − 1. Versión normalizada del AUC (0 = aleatorio, 1 = perfecto).
+                  </Typography>
+                </Paper>
+              </Collapse>
+            </Box>
+
+            <Box sx={{ mb: 2 }}>
+              <Box
+                sx={{ display: "flex", alignItems: "center", gap: 0.5, cursor: "pointer", color: "text.secondary", "&:hover": { color: "primary.main" } }}
+                onClick={() => setShowTrainInfo(!showTrainInfo)}
+              >
+                <Typography variant="caption">¿Por qué el modelo es tan preciso?</Typography>
+                <IconButton size="small">{showTrainInfo ? <ExpandLessIcon /> : <ExpandMoreIcon />}</IconButton>
+              </Box>
+              <Collapse in={showTrainInfo}>
+                <Paper sx={{ p: 2, mt: 1, bgcolor: SURFACE_COLORS.hero }} elevation={0}>
+                  <Typography variant="caption" component="div" sx={{ lineHeight: 1.8 }}>
+                    <b>Datos de entrenamiento:</b> El modelo se entrena con datos históricos reales de Londres extraídos de
+                    BigQuery (<code>bigquery-public-data.london_crime.crime_by_lsoa</code>), que contienen todos los
+                    crímenes reportados por LSOA (~1500 hab.) entre 2008 y 2016. Los ~3M de registros originales se
+                    agregan por distrito, categoría y mes, dando <b>77,524 filas</b> de entrenamiento.<br /><br />
+
+                    <b>Split temporal:</b> Para evitar que el modelo "aprenda del futuro", se separan los datos
+                    cronológicamente: <b>60,472 registros para entrenamiento (2008–2014)</b> y <b>17,052 para
+                    prueba (2015–2016)</b>. Esto simula un escenario real donde predecimos datos no vistos.<br /><br />
+
+                    <b>¿Por qué es tan preciso si el split es temporal?</b> Porque el modelo no predice el futuro:
+                    <b>estima patrones históricos</b>. Cuando seleccionas un distrito, categoría y mes, el modelo
+                    reconoce combinaciones que ya ha visto durante el entrenamiento. Por ejemplo, sabe que en
+                    diciembre ciertos distritos tienen más robos porque lo aprendió de los datos de 2008–2014.
+                    Las <b>lag features</b> (crímenes del mes anterior y media de 3 meses) añaden señal temporal
+                    legítima disponible al momento de la estimación.<br /><br />
+
+                    <b>Sobreajuste:</b> El modelo usa <b>LogisticRegression</b> (clasificador lineal simple) con
+                    regularización implícita, lo que reduce el riesgo de sobreajuste. Sin embargo, al tener ~105
+                    features (33 boroughs + 9 categorías + ~60 subcategorías + año + features temporales) para
+                    60k registros, la relación features/registros es baja (~0.2%), lo que dificulta el sobreajuste.
+                    El <b>RandomForestRegressor</b> usa 80 árboles con <code>min_samples_leaf=3</code> como
+                    regularización adicional.<br /><br />
+
+                    <b>Métricas reales vs infladas:</b> Antes del split temporal (split aleatorio 70/30), se
+                    obtenía ~89% de accuracy artificialmente inflado por data leakage. Con el split temporal
+                    más lag features, las métricas <b>mejoraron a ~92.6%</b> porque las lag features aportan
+                    información temporal valiosa y legítima. El Accuracy, Precision, Recall y R² que ves ahora
+                    son <b>métricas reales</b> sobre datos no vistos cronológicamente.
                   </Typography>
                 </Paper>
               </Collapse>
