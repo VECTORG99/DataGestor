@@ -27,7 +27,7 @@ Procesa ~3 millones de registros de crimen a nivel LSOA del dataset público de 
 | DataOps | Python + pandas + BigQuery + SQLAlchemy | `apps/backend/cli/pipeline_dataops.py` |
 | ML | scikit-learn | `apps/backend/cli/ml_pipeline.py` |
 | Modelos | joblib | `data/models/*.joblib` |
-| CI | GitHub Actions | `.github/workflows/ci-backend.yml` |
+| CI | GitHub Actions | `ci-backend.yml` (lint+test), `etl-pipeline.yml` (ETL+ML automático), `ml-training.yml` (retrain standalone) |
 | Infra | Docker + Compose + nginx | `Dockerfile`, `render.yaml`, `infra/` |
 
 ---
@@ -149,6 +149,8 @@ python -m apps.backend.cli.pipeline_dataops --demo
 | `BIGQUERY_ROW_LIMIT` | Límite de registros a leer |
 | `SUPABASE_TABLE_NAME` | Tabla destino, por defecto `london_crime_aggregated` |
 
+> El ETL también corre automáticamente cada mes via GitHub Actions (`etl-pipeline.yml`), usando `GCP_SERVICE_ACCOUNT_JSON` y `SUPABASE_DB_URL` como secrets del repositorio.
+
 ---
 
 ## DevOps / CI/CD
@@ -165,7 +167,7 @@ services:
     healthCheckPath: /health
 ```
 
-La imagen de producción se construye con el `Dockerfile` de la raíz. Ese Dockerfile instala `requirements.txt`, copia el proyecto, ejecuta/verifica el pipeline ML y levanta:
+La imagen de producción se construye con el `Dockerfile` de la raíz. Ese Dockerfile instala `requirements.txt`, copia el proyecto, descarga modelos pre-entrenados del release `ml-models-latest` (con fallback a entrenamiento en build), y levanta:
 
 ```bash
 uvicorn apps.backend.api.predict:app --host 0.0.0.0 --port 8000
@@ -190,15 +192,41 @@ Variables frontend:
 
 ### GitHub Actions
 
-Workflow real: `.github/workflows/ci-backend.yml`
+Tres workflows:
 
-Corre en push/PR a `main` o `master`:
+| Workflow | Trigger | Qué hace |
+|----------|---------|----------|
+| `ci-backend.yml` | push/PR a `main` | lint + test backend |
+| `etl-pipeline.yml` | 1ro de cada mes + manual | ETL (BigQuery → Supabase), genera JSONs frontend, entrena ML con datos frescos, sube modelos a release |
+| `ml-training.yml` | cada 3 días + manual | Retrain standalone con CSV commiteado, actualiza métricas, sube modelos |
 
-1. Python 3.11
-2. `pip install -r requirements.txt`
-3. `black --check apps/backend/`
-4. `flake8 apps/backend/`
-5. `python -m pytest apps/backend/tests/ -v`
+**`ci-backend.yml`** — lint + test en push/PR:
+
+```yaml
+# Python 3.11 → pip install → black --check → flake8 → pytest
+```
+
+**`etl-pipeline.yml`** — ETL + ML automatizado:
+```
+Job 1 (etl):
+  BigQuery → clean → Supabase → frontend JSONs
+  └── sube CSV procesado como artifact
+Job 2 (ml-training, depende de etl):
+  descarga artifact → entrena modelos → commitea ml_metrics.json
+  └── sube .joblib a release ml-models-latest
+```
+
+**`ml-training.yml`** — standalone (usa el CSV ya commiteado):
+```
+checkout → entrena → commitea métricas → sube modelos a ml-models-latest
+```
+
+**Secrets requeridos en GitHub:**
+
+| Secret | Uso |
+|--------|-----|
+| `GCP_SERVICE_ACCOUNT_JSON` | Credenciales BigQuery para ETL (solo `etl-pipeline.yml`) |
+| `SUPABASE_DB_URL` | Conexión a Supabase para carga de datos |
 
 ### Docker local
 
@@ -315,6 +343,8 @@ DataGestor/
 │   └── models/                   # modelos joblib
 ├── infra/                        # Docker Compose, Dockerfiles dev, nginx
 ├── .github/workflows/ci-backend.yml
+├── .github/workflows/etl-pipeline.yml
+├── .github/workflows/ml-training.yml
 ├── render.yaml
 ├── Dockerfile
 ├── requirements.txt

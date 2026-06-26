@@ -167,6 +167,22 @@ Requiere reestructurar el pipeline: un modelo por (borough, category) o modelos 
 
 ---
 
+## Entrenamiento Automatizado
+
+El entrenamiento ML corre **automáticamente** en GitHub Actions:
+
+| Workflow | Trigger | Data source |
+|----------|---------|-------------|
+| `etl-pipeline.yml` (job `ml-training`) | 1ro de cada mes (post-ETL) | CSV fresco del job ETL |
+| `ml-training.yml` (standalone) | cada 3 días | CSV commiteado en repo |
+
+Ambos workflows:
+1. Entrenan modelos con `python apps/backend/cli/ml_pipeline.py`
+2. Commitean `ml_metrics.json` al repo (actualiza dashboard)
+3. Suben los `.joblib` al release `ml-models-latest` (consumido por Dockerfile en Render)
+
+El Dockerfile en Render descarga los modelos pre-entrenados del release (fallback a entrenamiento en build si no hay release).
+
 ## Entrenamiento Local
 
 ```bash

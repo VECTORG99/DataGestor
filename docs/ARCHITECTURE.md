@@ -40,23 +40,31 @@
 └──────────────────────────────────┘   │  │ │ ├────────────┤  │  │  │
                                        │  │ │ │ Random     │  │  │  │
 ┌──────────────────────────────────┐   │  │ │ │ Forest     │  │  │  │
-│  PIPELINE ETL (Local)           │   │  │ │ │ Regressor  │  │  │  │
+│  PIPELINE ETL (GitHub Actions)    │   │  │ │ │ Regressor  │  │  │  │
 │  ┌────────────────────────────┐  │   │  │ │ ├────────────┤  │  │  │
-│  │ BigQuery → Clean → CSV     │  │   │  │ │ │ Encoders   │  │  │  │
-│  │ CSV → Supabase             │  │   │  │ │ └────────────┘  │  │  │
-│  │ CSV → Train ML             │  │   │  │ └─────────────────┘  │  │
-│  └────────────────────────────┘  │   │  └───────────────────────┘  │
+│  │ etl-pipeline.yml (mensual) │  │   │  │ │ │ Encoders   │  │  │  │
+│  │  BigQuery → Supabase       │  │   │  │ │ └────────────┘  │  │  │
+│  │  + frontend JSONs + commit │  │   │  │ └─────────────────┘  │  │
+│  └──────────┬─────────────────┘  │   │  └───────────────────────┘  │
+│             ▼                    │   │                              │
+│  ┌────────────────────────────┐  │   │                              │
+│  │ ml-training.yml (job ML)   │  │   │                              │
+│  │  Train → commit métricas   │  │   │                              │
+│  │  └── release ml-models     │  │   │                              │
+│  └────────────────────────────┘  │   │                              │
 └──────────────────────────────────┘   └──────────────────────────────┘
 ```
 
 ## Flujo de Datos
 
-### 1. ETL (Local → Supabase)
+### 1. ETL (GitHub Actions → Supabase)
+
+> El pipeline ETL corre **automáticamente** cada mes via GitHub Actions (`etl-pipeline.yml`). También puede ejecutarse localmente con `python -m apps.backend.cli.pipeline_dataops`.
 
 ```
 BigQuery (3M LSOA records)
    │
-   ▼  google-cloud-bigquery client
+   ▼  google-cloud-bigquery client (GCP service account desde secret)
 Raw Data (~3M filas)
    │
    ▼  apps/backend/cli/pipeline_dataops.py
@@ -97,6 +105,34 @@ Browser → fetch(ML_API_URL + /predict) → FastAPI en Render
   ├── RandomForestRegressor → predicted_crimes
   └── Response JSON → UI
 ```
+
+## CI/CD Automation
+
+El proyecto tiene **tres workflows** en GitHub Actions:
+
+```
+.github/workflows/
+├── ci-backend.yml         # lint + test en push/PR
+├── etl-pipeline.yml       # ETL mensual + ML training encadenado
+└── ml-training.yml        # retrain standalone cada 3 días
+```
+
+**Flujo ETL + ML (etl-pipeline.yml):**
+```
+Schedule (1ro de mes) → Job ETL → BigQuery → Clean → Supabase
+                                  → frontend JSONs → commit
+                                  └── CSV artifact ──→ Job ML Training
+                                                         → train models
+                                                         → commit ml_metrics.json
+                                                         └── release ml-models-latest
+```
+
+**Flujo standalone (ml-training.yml):**
+```
+Schedule (cada 3 días) → checkout → train → commit metrics → release models
+```
+
+**Render deploy:** el Dockerfile descarga los `.joblib` del release `ml-models-latest` en vez de entrenar en cada build. Si el release no existe, entrena en build time como fallback.
 
 ## Stack por Capa
 

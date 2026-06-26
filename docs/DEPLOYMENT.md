@@ -5,11 +5,34 @@
 ```
 [GitHub] ──push──→ [GitHub Actions]
                         │
-                        └── ci-backend.yml: black + flake8 + pytest
+                        ├── ci-backend.yml: black + flake8 + pytest
+                        │   (push/PR a main)
+                        │
+                        ├── etl-pipeline.yml: ETL + ML automático
+                        │   (1ro de cada mes + manual)
+                        │   ┌────────────────────────────────────┐
+                        │   │ Job etl:                            │
+                        │   │   BigQuery → Clean → Supabase       │
+                        │   │   → frontend JSONs → commit         │
+                        │   │   └── CSV artifact                  │
+                        │   │ Job ml-training (dep de etl):       │
+                        │   │   CSV artifact → train ML           │
+                        │   │   → commit métricas                 │
+                        │   │   └── release ml-models-latest      │
+                        │   └────────────────────────────────────┘
+                        │
+                        └── ml-training.yml: retrain standalone
+                            (cada 3 días + manual)
+                              → train → commit métricas
+                              → release ml-models-latest
                         │
                         ▼
                   [Vercel] auto-deploy desde main
                   [Render] auto-deploy desde main
+                        │
+                        ▼
+                  Render build: Dockerfile descarga .joblib
+                  de release ml-models-latest (fallback a train)
 ```
 
 | Componente | Plataforma | Config real |
@@ -18,7 +41,7 @@
 | Backend ML API | Render | `render.yaml` + Dockerfile raíz |
 | Base de Datos | Supabase | tabla `london_crime_aggregated` |
 
-No hay despliegue automático por GitHub Actions. Vercel y Render detectan cambios en `main` mediante sus integraciones nativas.
+Vercel y Render detectan cambios en `main` mediante sus integraciones nativas. Los workflows `etl-pipeline.yml` y `ml-training.yml` corren previo al deploy para asegurar datos frescos en Supabase y modelos actualizados en el release.
 
 ---
 
@@ -92,48 +115,86 @@ Los datos se cargan mediante el pipeline ETL con upsert. El dataset completo tie
 
 ## CI/CD — GitHub Actions
 
-### `ci-backend.yml` (único workflow)
+El repositorio tiene **tres workflows**:
+
+| Workflow | Archivo | Trigger | Permisos |
+|----------|---------|---------|----------|
+| CI Backend | `ci-backend.yml` | push/PR a main | read |
+| ETL Pipeline | `etl-pipeline.yml` | 1ro de cada mes + manual | contents: write |
+| ML Training | `ml-training.yml` | cada 3 días + manual | contents: write |
+
+### `ci-backend.yml` — lint + tests
 ```yaml
 name: CI Backend
 on:
-  push:
-    branches: [main, master]
-  pull_request:
-    branches: [main, master]
+  push: {branches: [main, master]}
+  pull_request: {branches: [main, master]}
 jobs:
   test-lint-backend:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Set up Python 3.11
-        uses: actions/setup-python@v5
-        with:
-          python-version: 3.11
-      - name: Install dependencies
-        run: |
-          pip install 'black>=25.0,<26' flake8
-          pip install -r requirements.txt
-      - name: Black format check
-        run: black --check apps/backend/
-      - name: Flake8 lint
-        run: flake8 apps/backend/ --max-line-length=100 --exclude=.venv,__pycache__
-      - name: Pytest
-        run: python -m pytest apps/backend/tests/ -v
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.11'}
+      - run: pip install 'black>=25.0,<26' flake8 -r requirements.txt
+      - run: black --check apps/backend/
+      - run: flake8 apps/backend/ --max-line-length=100 --exclude=.venv,__pycache__
+      - run: python -m pytest apps/backend/tests/ -v
         env:
           SUPABASE_DB_URL: dummy
           GOOGLE_APPLICATION_CREDENTIALS: dummy
 ```
 
-**Nota:** El CI solo cubre el backend. No hay workflow de frontend — Vercel hace build propio al desplegar.
+> El CI solo cubre backend. No hay workflow de frontend — Vercel hace su propio build al desplegar.
+
+### `etl-pipeline.yml` — ETL + ML automático
+
+```yaml
+on:
+  schedule: [{cron: '0 6 1 * *'}]   # 1ro de mes
+  workflow_dispatch:                  # manual
+```
+
+**Job 1 — `etl`:** Corre `pipeline_dataops.py --production` con credenciales GCP (secret `GCP_SERVICE_ACCOUNT_JSON`) y `SUPABASE_DB_URL`. Genera `pipeline_logs.json` + `pipeline_stats.json`, los commitea, y sube el CSV procesado como artifact.
+
+**Job 2 — `ml-training`** (depende de `etl`): Descarga el artifact del job anterior (datos frescos), corre `ml_pipeline.py`, commitea `ml_metrics.json`, y sube los `.joblib` al release `ml-models-latest` (se sobreescribe cada ejecución vía `ncipollo/release-action` con `allowUpdates`).
+
+```mermaid
+flowchart LR
+  A[Schedule: 1st of month] --> B[Job: ETL]
+  B --> C[BigQuery → Supabase]
+  B --> D[Commit frontend JSONs]
+  B --> E[Artifact: CSV]
+  E --> F[Job: ML Training]
+  F --> G[Train models]
+  F --> H[Commit ml_metrics.json]
+  F --> I[Release: ml-models-latest]
+```
+
+### `ml-training.yml` — standalone retrain
+
+```yaml
+on:
+  schedule: [{cron: '0 6 3 * *'}]   # cada 3 días
+  workflow_dispatch:
+```
+
+Mismo proceso que el job ML de `etl-pipeline.yml` pero independiente: usa el CSV ya commiteado en el repo (sin extraer de BigQuery). Commitea métricas y sube modelos al mismo tag `ml-models-latest`.
 
 ### Secrets requeridos en GitHub
-Los tests usan valores dummy (`SUPABASE_DB_URL: dummy`, `GOOGLE_APPLICATION_CREDENTIALS: dummy`) y solo prueban lógica sin conexión real a BD. No se requieren secrets reales para CI.
+
+| Secret | Uso | Dónde se necesita |
+|--------|-----|-------------------|
+| `GCP_SERVICE_ACCOUNT_JSON` | Service account JSON para BigQuery | `etl-pipeline.yml` (job etl) |
+| `SUPABASE_DB_URL` | Conexión PostgreSQL a Supabase | `etl-pipeline.yml` (job etl) |
+
+Los tests de `ci-backend.yml` usan valores dummy y no requieren secrets reales.
 
 ---
 
 ## Pipeline ETL
 
-El pipeline ETL se ejecuta **localmente** (no en producción):
+El pipeline ETL se ejecuta **automáticamente** cada 1ro de mes via GitHub Actions (`etl-pipeline.yml`), o **localmente** para desarrollo:
 
 ```bash
 # ETL completo (BigQuery → limpia → Supabase)
@@ -150,6 +211,8 @@ python -m apps.backend.cli.ml_pipeline
 1. Credenciales GCP (`google-cloud-bigquery`) — archivo JSON de service account (solo para modo no-demo).
 2. Credenciales Supabase — variable `SUPABASE_DB_URL`.
 3. Dataset público `bigquery-public-data.london_crime.crime_by_lsoa` en BigQuery.
+
+> En GitHub Actions, las credenciales se pasan via secrets: `GCP_SERVICE_ACCOUNT_JSON` y `SUPABASE_DB_URL`.
 
 ### Flujo ETL (detalle por módulo)
 ```
@@ -179,13 +242,15 @@ apps/backend/cli/ml_pipeline.py
     └── data/models/*.joblib              → modelos serializados
 ```
 
+> El entrenamiento ML también corre automáticamente después de cada ETL (mismo workflow) y standalone cada 3 días. Los modelos se suben al release `ml-models-latest`.
+
 ## Docker / Compose
 
 El proyecto sí incluye contenedores, pero están centralizados:
 
 | Archivo | Uso |
 |---|---|
-| `Dockerfile` | Imagen de producción para Render: instala `requirements.txt`, entrena/verifica modelos y levanta FastAPI |
+| `Dockerfile` | Imagen de producción para Render: descarga modelos pre-entrenados de release `ml-models-latest` (fallback a entrenamiento en build), levanta FastAPI |
 | `infra/docker-compose.yml` | Entorno local con backend + frontend |
 | `infra/backend.Dockerfile` | Backend dev interactivo |
 | `infra/frontend.Dockerfile` | Build React + nginx |
