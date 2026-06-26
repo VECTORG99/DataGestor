@@ -1,0 +1,83 @@
+name: ETL Pipeline
+
+on:
+  schedule:
+    - cron: '0 6 1 * *'   # 1st day of month at 06:00 UTC
+  workflow_dispatch:       # manual trigger
+
+env:
+  SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+
+jobs:
+  etl:
+    name: Extract → Transform → Load
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    outputs:
+      csv_artifact: processed-data
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+      - name: Setup GCP credentials
+        run: |
+          echo '${{ secrets.GCP_SERVICE_ACCOUNT_JSON }}' > /tmp/gcp-credentials.json
+          echo "GOOGLE_APPLICATION_CREDENTIALS=/tmp/gcp-credentials.json" >> $GITHUB_ENV
+      - name: Run ETL pipeline
+        run: python apps/backend/cli/pipeline_dataops.py --production
+      - name: Generate frontend JSONs
+        run: python apps/backend/cli/generate_frontend_jsons.py
+      - name: Commit updated pipeline logs
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add apps/frontend/public/pipeline_logs.json apps/frontend/public/pipeline_stats.json
+          git diff --cached --quiet || git commit -m "chore: update pipeline logs [skip ci]"
+          git push
+      - name: Upload processed data for ML job
+        uses: actions/upload-artifact@v4
+        with:
+          name: processed-data
+          path: data/processed/london_crime_aggregated.csv
+          retention-days: 7
+
+  ml-training:
+    name: Train ML models
+    needs: etl
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+      - name: Download fresh processed data
+        uses: actions/download-artifact@v4
+        with:
+          name: processed-data
+          path: data/processed/
+      - name: Train ML models
+        run: python apps/backend/cli/ml_pipeline.py
+      - name: Commit updated ML metrics
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add apps/frontend/public/ml/ml_metrics.json
+          git diff --cached --quiet || git commit -m "chore: update ML metrics [skip ci]"
+          git push
+      - name: Upload models as release artifacts
+        uses: ncipollo/release-action@v1
+        with:
+          allowUpdates: true
+          replacesArtifacts: true
+          tag: ml-models-latest
+          name: "ML Models (latest)"
+          artifacts: data/models/*.joblib
+          token: ${{ secrets.GITHUB_TOKEN }}

@@ -39,3 +39,6 @@ data/models/*
 
 # Reportes
 ML_REPORT.md
+
+# Agent session artifacts
+.agent-screenshots/
