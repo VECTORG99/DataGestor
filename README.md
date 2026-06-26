@@ -13,7 +13,7 @@ Procesa ~3 millones de registros de crimen a nivel LSOA del dataset público de 
 2. **Pipeline DataOps/ETL** — extracción desde BigQuery, limpieza, validación, agregación, snapshots, métricas y carga a Supabase.
 3. **Estimador ML histórico** — dado un distrito, categoría, mes y año, estima cuántos crímenes cabría esperar según el perfil histórico aprendido.
 
-**Importante:** Este sistema **NO predice el futuro**. El modelo ML actual se entrena con un split aleatorio 70/30 sobre datos históricos, lo que puede introducir fuga temporal e inflar métricas. Para predicción real, ver [Opciones de evolución](#opciones-de-evolución).
+**Importante:** Este sistema **NO predice el futuro**. El modelo ML estima el perfil histórico 2008-2016 con un split temporal correcto (train ≤ 2014, test ≥ 2015). Una auditoría (2026-06) removió las lag features que rompían la inferencia de la API e inflaban métricas. Ver [docs/ML_PIPELINE.md](docs/ML_PIPELINE.md).
 
 ---
 
@@ -92,8 +92,9 @@ No extrapola de forma confiable fuera del rango histórico.
 - **Algoritmo:** `LogisticRegression`
 - **Objetivo:** clasificar incidencia alta (`1`) o baja (`0`).
 - **Target:** `target_binary = total_crimes > median(total_crimes)`.
-- **Features:** `borough`, `major_category`, `minor_category`, `year`, `month_sin`, `month_cos`.
-- **Limitación:** split aleatorio 70/30, no split temporal.
+- **Features:** `borough`, `major_category`, `minor_category`, `year`, `month_sin`, `month_cos` (6, consistentes con inferencia).
+- **Split:** temporal (train ≤ 2014, test ≥ 2015), sin fuga.
+- **Limitación:** RandomForest no extrapola fuera del rango de entrenamiento.
 
 ### Modelo de regresión
 
@@ -104,14 +105,7 @@ No extrapola de forma confiable fuera del rango histórico.
 
 ### Limitación fundamental
 
-```python
-# Simplificado: split aleatorio, no temporal
-X_train, X_test, y_train, y_test = train_test_split(
-    X, y, test_size=0.3, random_state=42
-)
-```
-
-Esto significa que el modelo puede evaluar datos antiguos habiendo aprendido patrones de años posteriores. Las métricas describen desempeño histórico interno, no predicción futura real.
+El modelo usa split temporal (train ≤ 2014, test ≥ 2015) — sin fuga. RandomForestRegressor **no extrapola**: para años fuera del rango de entrenamiento devuelve el promedio del leaf más cercano. Las métricas (acc 0.89, R² 0.91) describen desempeño histórico interno, no predicción futura. Para 2017+ ver [Opciones de evolución](#opciones-de-evolución).
 
 ---
 
@@ -356,24 +350,17 @@ DataGestor/
 
 ## Opciones de evolución
 
-### Opción A — actual
+### Opción A — actual (post-auditoría 2026-06)
 
-Mantener el estimador histórico, documentando que no predice futuro.
+Estimador histórico con 6 features, split temporal (train ≤ 2014 / test ≥ 2015), sin lag features. Honest metrics: acc 0.89, R² 0.91.
 
-### Opción B — split temporal correcto
+### Opción B — lag features reales con DB lookup en inferencia
 
-Cambiar evaluación a entrenamiento histórico y test futuro:
+Hacer que `/predict` consulte Supabase por el mes anterior del mismo `(borough, category)` y compute `crimes_last_month` server-side. Reentrenar con lag. Captura autocorrelación sin la fuga del bug original.
 
-```python
-train = df[df["year"] <= 2014]
-test = df[df["year"] >= 2015]
-```
+### Opción C — predicción real 2017+
 
-Añadir `lag_1`, `lag_12`, rolling averages y walk-forward validation.
-
-### Opción C — predicción real
-
-Migrar a Prophet, SARIMA o LSTM para series temporales y predicción 2017+ por distrito/categoría.
+Migrar a Prophet, SARIMA o LSTM por serie `(borough, category)`. Reestructura el pipeline. El estimador actual pasa a ser solo descriptivo histórico.
 
 ---
 
