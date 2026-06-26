@@ -540,8 +540,8 @@ export default function App() {
           { label: "Mayor carga detectada", value: slowestStage?.stage || "No disponible", detail: slowestStage ? `Etapa más lenta: ${slowestStage.duration_s.toFixed(1)}s.` : "No hay detalle de etapas.", color: COLORS.purple },
           { label: "Completitud", value: latestRun?.completeness_pct !== undefined ? `${latestRun.completeness_pct}%` : "N/A", detail: "Porcentaje de datos completos sin nulos en columnas críticas.", color: COLORS.secondary },
           { label: "Advertencias", value: latestRun?.warnings_count !== undefined ? latestRun.warnings_count : "N/A", detail: latestRun?.warnings_count ? `${latestRun.warnings_count} warnings registrados durante la ejecución.` : "Sin advertencias en el último run.", color: latestRun?.warnings_count ? COLORS.accent : COLORS.secondary },
-          { label: "Consumo RAM", value: "No instrumentado", detail: "Agregar psutil/tracemalloc para medir memoria durante entrenamiento.", color: SURFACE_COLORS.raw },
-          { label: "Consumo CPU", value: "No instrumentado", detail: "Agregar psutil para %CPU por etapa y entorno.", color: SURFACE_COLORS.raw },
+          { label: "Consumo RAM", value: latestRun?.peak_memory_mb ? `${latestRun.peak_memory_mb.toFixed(1)} MB` : "No instrumentado", detail: latestRun?.peak_memory_mb ? `Pico de memoria RSS durante la ejecución del pipeline.` : "Ejecuta el pipeline con psutil instalado para medir RAM.", color: latestRun?.peak_memory_mb ? COLORS.primary : SURFACE_COLORS.raw },
+          { label: "Consumo CPU", value: latestRun?.avg_cpu_percent ? `${latestRun.avg_cpu_percent.toFixed(1)}%` : "No instrumentado", detail: latestRun?.avg_cpu_percent ? `Promedio de uso de CPU durante la ejecución del pipeline.` : "Ejecuta el pipeline con psutil instalado para medir CPU.", color: latestRun?.avg_cpu_percent ? COLORS.primary : SURFACE_COLORS.raw },
         ].map((metric) => (
           <Grid item xs={12} sm={6} md={3} key={metric.label}>
             <Card sx={{ borderTop: 3, borderColor: metric.color }}>
@@ -563,25 +563,23 @@ export default function App() {
               <TableCell sx={{ fontWeight: "bold" }}>Área</TableCell>
               <TableCell sx={{ fontWeight: "bold" }}>Qué se revisa</TableCell>
               <TableCell sx={{ fontWeight: "bold" }}>Estado actual</TableCell>
-              <TableCell sx={{ fontWeight: "bold" }}>Acción recomendada</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
             {[
-              ["Tiempo total", "Duración por volumen y entorno", latestRun ? `${latestRun.duration_seconds.toFixed(1)}s en ${latestRun.mode}` : "Sin run registrado", slowestStage ? `Optimizar ${slowestStage.stage}` : "Ejecutar pipeline"],
-              ["Errores", "Errores críticos, warnings o fallos parciales", `${recentErrors.length} errores · ${recentWarnings.length} warnings`, recentErrors.length ? "Revisar eventos ERROR" : "Warnings menores no bloquean ejecución"],
-              ["Estabilidad", "Etapas completas sin cierres inesperados", pipelineStable ? "Completa correctamente" : "Incompleta o sin logs", "Mantener monitoreo por etapa"],
-              ["Completitud", "% datos sin nulos en columnas críticas", latestRun ? `${latestRun.completeness_pct}%` : "N/A", latestRun?.completeness_pct < 100 ? "Revisar calidad de datos" : "Monitorear en cada ejecución"],
-              ["Advertencias", "Warnings registrados en la ejecución", latestRun ? `${latestRun.warnings_count} warnings` : "N/A", latestRun?.warnings_count ? "Revisar cada warning" : "Mantener monitoreo"],
-              ["RAM", "Memoria durante ingesta/entrenamiento", "No instrumentado", "Agregar psutil/tracemalloc"],
-              ["CPU", "%CPU por etapa", "No instrumentado", "Agregar psutil y tabla por entorno"],
-              ["Cuello de botella", "Etapa con más carga", slowestStage ? `${slowestStage.stage} (${slowestStage.duration_s.toFixed(1)}s)` : "Sin datos", slowestStage ? "Priorizar esa etapa" : "Registrar etapas"],
-            ].map(([area, check, status, action]) => (
+              ["Tiempo total", "Duración por volumen y entorno", latestRun ? `${latestRun.duration_seconds.toFixed(1)}s en ${latestRun.mode}` : "Sin run registrado"],
+              ["Errores", "Errores críticos, warnings o fallos parciales", `${recentErrors.length} errores · ${recentWarnings.length} warnings`],
+              ["Estabilidad", "Etapas completas sin cierres inesperados", pipelineStable ? "Completa correctamente" : "Incompleta o sin logs"],
+              ["Completitud", "% datos sin nulos en columnas críticas", latestRun ? `${latestRun.completeness_pct}%` : "N/A"],
+              ["Advertencias", "Warnings registrados en la ejecución", latestRun ? `${latestRun.warnings_count} warnings` : "N/A"],
+              ["RAM", "Memoria durante ingesta/entrenamiento", latestRun?.peak_memory_mb ? `${latestRun.peak_memory_mb.toFixed(1)} MB pico` : "No instrumentado"],
+              ["CPU", "%CPU por etapa", latestRun?.avg_cpu_percent ? `${latestRun.avg_cpu_percent.toFixed(1)}% promedio` : "No instrumentado"],
+              ["Cuello de botella", "Etapa con más carga", slowestStage ? `${slowestStage.stage} (${slowestStage.duration_s.toFixed(1)}s)` : "Sin datos"],
+            ].map(([area, check, status]) => (
               <TableRow key={area}>
                 <TableCell>{area}</TableCell>
                 <TableCell>{check}</TableCell>
                 <TableCell>{status}</TableCell>
-                <TableCell>{action}</TableCell>
               </TableRow>
             ))}
           </TableBody>

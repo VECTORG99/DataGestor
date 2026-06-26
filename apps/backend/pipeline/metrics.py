@@ -7,6 +7,8 @@ from logging.handlers import RotatingFileHandler
 from pathlib import Path
 from typing import Optional
 
+import psutil
+
 from config import settings
 
 
@@ -76,6 +78,8 @@ class PipelineMetrics:
     completeness_pct: float = 100.0
     outliers_detected: int = 0
     warnings_count: int = 0
+    peak_memory_mb: float = 0.0
+    avg_cpu_percent: float = 0.0
 
     def to_dict(self):
         return {
@@ -98,6 +102,8 @@ class PipelineMetrics:
             "completeness_pct": round(self.completeness_pct, 1),
             "outliers_detected": self.outliers_detected,
             "warnings_count": self.warnings_count,
+            "peak_memory_mb": round(self.peak_memory_mb, 1),
+            "avg_cpu_percent": round(self.avg_cpu_percent, 1),
         }
 
     def summary(self) -> str:
@@ -122,6 +128,8 @@ class PipelineMetrics:
                 f"  Completitud:      {self.completeness_pct}%",
                 f"  Outliers:         {self.outliers_detected}",
                 f"  Advertencias:     {self.warnings_count}",
+                f"  RAM pico:         {self.peak_memory_mb:.1f} MB",
+                f"  CPU promedio:     {self.avg_cpu_percent:.1f}%",
                 "=" * 70,
             ]
         )
@@ -135,11 +143,27 @@ class MetricsCollector:
         self._stage_start = None
         self._current_stage = None
         self._warnings_before = 0
+        self._process = psutil.Process()
+        self._cpu_samples: list[float] = []
+        self._peak_memory = 0.0
+        # First cpu_percent() call returns 0, so sample once to warm it up
+        self._process.cpu_percent(interval=None)
+
+    def _sample_resources(self):
+        try:
+            mem = self._process.memory_info().rss / (1024 * 1024)
+            cpu = self._process.cpu_percent(interval=None)
+            if mem > self._peak_memory:
+                self._peak_memory = mem
+            self._cpu_samples.append(cpu)
+        except Exception:
+            pass
 
     def set_demo_mode(self, enabled: bool):
         self.metrics.demo_mode = enabled
 
     def start_stage(self, name: str, records_in: int = None):
+        self._sample_resources()
         self._current_stage = StageMetric(
             stage=name,
             duration_seconds=0.0,
@@ -155,6 +179,7 @@ class MetricsCollector:
             self.metrics.stages.append(self._current_stage)
         self._current_stage = None
         self._stage_start = None
+        self._sample_resources()
 
     def set_records(self, initial: int, final: int):
         self.metrics.records_initial = initial
@@ -173,6 +198,10 @@ class MetricsCollector:
 
     def finalize(self):
         self.metrics.total_duration_seconds = time.time() - self._start_time
+        self._sample_resources()
+        self.metrics.peak_memory_mb = self._peak_memory
+        samples = [c for c in self._cpu_samples if c > 0]
+        self.metrics.avg_cpu_percent = sum(samples) / len(samples) if samples else 0.0
         return self.metrics
 
     def save(self, metrics_dir: Path = None):

@@ -68,6 +68,8 @@ def to_production_run(metrics: dict) -> dict:
         "total_records_out": metrics.get("records_final", 0),
         "completeness_pct": round(metrics.get("completeness_pct", 100.0), 1),
         "warnings_count": metrics.get("warnings_count", 0),
+        "peak_memory_mb": round(metrics.get("peak_memory_mb", 0), 1),
+        "avg_cpu_percent": round(metrics.get("avg_cpu_percent", 0), 1),
     }
 
 
