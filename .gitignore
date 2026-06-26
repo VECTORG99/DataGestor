@@ -36,3 +36,6 @@ data/models/*
 # Archivos de Word/Excel (Temporales)
 ~$*.doc*
 ~$*.xls*
+
+# Reportes
+ML_REPORT.md

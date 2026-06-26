@@ -81,12 +81,16 @@ def evaluate_classification(model, X_test, y_test, model_name: str = "model") ->
     metrics["false_negatives"] = int(fn)
     metrics["true_positives"] = int(tp)
 
-    # ROC AUC + Gini
+    # ROC AUC + Gini + full curve data
     if y_proba is not None:
         fpr, tpr, _ = roc_curve(y_test, y_proba)
         roc_auc = auc(fpr, tpr)
         metrics["roc_auc"] = round(roc_auc, 4)
         metrics["gini"] = round(2 * roc_auc - 1, 4)
+        metrics["roc_curve"] = {
+            "fpr": [round(float(x), 6) for x in fpr],
+            "tpr": [round(float(x), 6) for x in tpr],
+        }
 
     return metrics
 

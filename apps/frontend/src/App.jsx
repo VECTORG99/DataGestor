@@ -147,6 +147,7 @@ export default function App() {
   const [pipelineStats, setPipelineStats] = useState(null);
   const [pipelineLogs, setPipelineLogs] = useState(null);
   const [logsOpen, setLogsOpen] = useState(false);
+  const [showMetricHelp, setShowMetricHelp] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [activePage, setActivePage] = useState("dashboard");
   const [dashboardTab, setDashboardTab] = useState("summary");
@@ -978,6 +979,29 @@ export default function App() {
                 </Grid>
               ))}
             </Grid>
+
+            <Box sx={{ mb: 2 }}>
+              <Box
+                sx={{ display: "flex", alignItems: "center", gap: 0.5, cursor: "pointer", color: "text.secondary", "&:hover": { color: "primary.main" } }}
+                onClick={() => setShowMetricHelp(!showMetricHelp)}
+              >
+                <Typography variant="caption">¿Qué significan estas métricas?</Typography>
+                <IconButton size="small">{showMetricHelp ? <ExpandLessIcon /> : <ExpandMoreIcon />}</IconButton>
+              </Box>
+              <Collapse in={showMetricHelp}>
+                <Paper sx={{ p: 2, mt: 1, bgcolor: SURFACE_COLORS.hero }} elevation={0}>
+                  <Typography variant="caption" component="div" sx={{ lineHeight: 1.8 }}>
+                    <b>Accuracy</b> — Porcentaje de aciertos totales (altas + bajas bien clasificadas).<br />
+                    <b>Precision</b> — De las que el modelo predijo como "alta incidencia", cuántas realmente lo fueron. Mide falsas alarmas.<br />
+                    <b>Recall (Sensibilidad)</b> — De los casos que realmente fueron "alta incidencia", cuántos capturó el modelo. Mide aciertos sobre el total real.<br />
+                    <b>F1 Score</b> — Media armónica entre Precision y Recall. Equilibra ambas métricas cuando hay desbalance.<br />
+                    <b>ROC AUC</b> — Área bajo la curva ROC. Mide la capacidad del modelo para separar clases (0.5 = aleatorio, 1.0 = perfecto).<br />
+                    <b>Gini</b> — 2 × AUC − 1. Versión normalizada del AUC (0 = aleatorio, 1 = perfecto).
+                  </Typography>
+                </Paper>
+              </Collapse>
+            </Box>
+
             <Grid container spacing={2}>
               <Grid item xs={12} md={6}>
                 <Paper sx={{ p: 1.5, textAlign: "center" }}>
@@ -999,23 +1023,39 @@ export default function App() {
                 <Paper sx={{ p: 1.5, textAlign: "center" }}>
                   <Typography variant="subtitle2" gutterBottom>Curva ROC</Typography>
                   <Box sx={{ position: "relative", width: "100%", maxWidth: 400, mx: "auto" }}>
-                    <svg viewBox="0 0 100 100" style={{ width: "100%", height: "auto" }}>
+                    <svg viewBox="0 0 110 105" style={{ width: "100%", height: "auto" }}>
+                      {/* background for axis area */}
+                      <rect x="5" y="0" width="100" height="100" fill="none" stroke="#ddd" strokeWidth="0.3" />
+                      {/* grid lines + Y axis ticks */}
+                      {[0, 25, 50, 75, 100].map((v) => (
+                        <g key={`y${v}`}>
+                          <line x1="5" y1={100 - v} x2="105" y2={100 - v} stroke="#eee" strokeWidth="0.3" />
+                          <text x="2" y={100 - v + 1} fontSize="2.5" textAnchor="end" fill="#999">{v === 0 ? "0" : v === 100 ? "1" : `0.${v / 25}`}</text>
+                        </g>
+                      ))}
+                      {/* X axis ticks */}
+                      {[0, 25, 50, 75, 100].map((v) => (
+                        <g key={`x${v}`}>
+                          <line x1={5 + v} y1="0" x2={5 + v} y2="100" stroke="#eee" strokeWidth="0.3" />
+                          <text x={5 + v} y="104" fontSize="2.5" textAnchor="middle" fill="#999">{v === 0 ? "0" : v === 100 ? "1" : `0.${v / 25}`}</text>
+                        </g>
+                      ))}
                       {/* diagonal reference */}
-                      <line x1="0" y1="100" x2="100" y2="0" stroke="#ccc" strokeWidth="0.5" strokeDasharray="3,3" />
+                      <line x1="5" y1="100" x2="105" y2="0" stroke="#ccc" strokeWidth="0.5" strokeDasharray="3,3" />
                       {/* ROC curve */}
                       <polyline
                         fill="none"
                         stroke={COLORS.primary}
                         strokeWidth="1.5"
                         points={mlMetrics.roc_curve.fpr.map((f, i) => {
-                          const x = f * 100;
+                          const x = 5 + f * 100;
                           const y = 100 - mlMetrics.roc_curve.tpr[i] * 100;
                           return `${x},${y}`;
                         }).join(" ")}
                       />
                       {/* axis labels */}
-                      <text x="50" y="97" fontSize="3" textAnchor="middle" fill="#666">Tasa de Falsos Positivos (FPR)</text>
-                      <text x="-50" y="2" fontSize="3" textAnchor="middle" fill="#666" transform="rotate(-90, -50, 2)">Tasa de Verdaderos Positivos (TPR)</text>
+                      <text x="55" y="107.5" fontSize="3" textAnchor="middle" fill="#555">Tasa de Falsos Positivos (FPR)</text>
+                      <text x="-45" y="1.5" fontSize="3" textAnchor="middle" fill="#555" transform="rotate(-90, -45, 1.5)">Tasa de Verdaderos Positivos (TPR)</text>
                     </svg>
                     <Typography variant="caption" display="block" color="text.secondary">
                       AUC = {mlMetrics.roc_auc.toFixed(4)}

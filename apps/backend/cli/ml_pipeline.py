@@ -19,7 +19,10 @@ PROJECT_ROOT = Path(__file__).resolve().parents[3]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from apps.backend.ml.preprocessing import load_clean_data, preprocess_and_split
+from apps.backend.ml.preprocessing import (
+    load_clean_data,
+    temporal_preprocess_and_split,
+)
 from apps.backend.pipeline.metrics import configure_logging
 from config import settings
 from apps.backend.ml.classification import (
@@ -35,6 +38,7 @@ from apps.backend.ml.classification import (
 DATA_PATH = PROJECT_ROOT / "data" / "processed" / "london_crime_aggregated.csv"
 METRICS_DIR = PROJECT_ROOT / "data" / "metrics"
 MODELS_DIR = PROJECT_ROOT / "data" / "models"
+FRONTEND_ML_DIR = PROJECT_ROOT / "apps" / "frontend" / "public" / "ml"
 
 
 def main():
@@ -61,9 +65,13 @@ def main():
     logging.info(f"  Registros cargados: {len(df)}")
 
     # ---- 2. Preprocess ----
-    logging.info("[2/4] Preprocesando...")
-    X_train, X_test, y_train, y_test, pre = preprocess_and_split(
-        df, random_state=settings.ML_RANDOM_STATE
+    logging.info("[2/4] Preprocesando con split temporal (train <= 2014, test >= 2015)...")
+    X_train, X_test, y_train, y_test, pre, df_aug = temporal_preprocess_and_split(
+        df, train_until_year=2014
+    )
+    logging.info(
+        f"  Train: {len(X_train)} registros (≤ 2014) | "
+        f"Test: {len(X_test)} registros (≥ 2015)"
     )
     X_train_t = pre.fit_transform(X_train)
     X_test_t = pre.transform(X_test)
@@ -87,8 +95,8 @@ def main():
     joblib.dump(pre, MODELS_DIR / settings.ML_PREPROCESSOR_FILENAME)
     logging.info(f"[ML] Preprocesador guardado en {MODELS_DIR / settings.ML_PREPROCESSOR_FILENAME}")
 
-    y_count_train = df.loc[X_train.index, "total_crimes"].values
-    y_count_test = df.loc[X_test.index, "total_crimes"].values
+    y_count_train = df_aug.loc[X_train.index, "total_crimes"].values
+    y_count_test = df_aug.loc[X_test.index, "total_crimes"].values
     regressor = train_crime_regressor(X_train_t, y_count_train)
     regression_metrics = evaluate_regression(regressor, X_test_t, y_count_test)
     joblib.dump(regressor, MODELS_DIR / settings.ML_REGRESSOR_FILENAME)
@@ -101,6 +109,10 @@ def main():
     metrics["duration_seconds"] = round(time.time() - started, 2)
     with open(METRICS_DIR / settings.ML_METRICS_FILENAME, "w") as f:
         json.dump(metrics, f, indent=2)
+    # Copy unified JSON to frontend static directory (includes roc_curve)
+    FRONTEND_ML_DIR.mkdir(parents=True, exist_ok=True)
+    with open(FRONTEND_ML_DIR / settings.ML_METRICS_FILENAME, "w") as f:
+        json.dump(metrics, f, indent=2)
     logging.info(
         "ml_metrics_saved",
         extra={
@@ -110,7 +122,7 @@ def main():
             "hyperparameters": hyperparameters,
         },
     )
-    logging.info("[3/4] Metricas guardadas")
+    logging.info(f"[3/4] Metricas guardadas (tambien copiadas a {FRONTEND_ML_DIR})")
 
     # ---- Summary ----
     logging.info("=" * 60)

@@ -29,6 +29,28 @@ def cyclical_encode_month(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
+def add_lag_features(df: pd.DataFrame) -> pd.DataFrame:
+    """Add temporal lag features: crimes_last_month and avg_last_3_months.
+
+    For each (borough, major_category, minor_category) group, computes:
+    - crimes_last_month: total crimes in the previous month
+    - avg_last_3_months: rolling average of the last 3 months
+    """
+    df = df.copy()
+    df = df.sort_values(["borough", "major_category", "minor_category", "year", "month"])
+    group_cols = ["borough", "major_category", "minor_category"]
+
+    df["crimes_last_month"] = df.groupby(group_cols)["total_crimes"].shift(1)
+    df["avg_last_3_months"] = (
+        df.groupby(group_cols)["total_crimes"]
+        .transform(lambda x: x.rolling(3, min_periods=1).mean())
+    )
+
+    # Fill NaN from first month of each group with 0
+    df["crimes_last_month"] = df["crimes_last_month"].fillna(0)
+    return df
+
+
 def build_preprocessor(categorical_cols: list, numeric_cols: list):
     """Build ColumnTransformer: one-hot encoder + StandardScaler."""
     cat_pipeline = Pipeline(
@@ -59,8 +81,35 @@ def prepare_features(df: pd.DataFrame) -> pd.DataFrame:
         "year",
         "month_sin",
         "month_cos",
+        "crimes_last_month",
+        "avg_last_3_months",
     ]
     return df[feature_cols]
+
+
+def temporal_preprocess_and_split(
+    df: pd.DataFrame,
+    train_until_year: int = 2014,
+):
+    """Temporal split: train on years ≤ train_until_year, test on later years.
+
+    This avoids data leakage from future data inflating metrics.
+    """
+    df = add_lag_features(df)
+    y = create_classification_target(df)
+    X = prepare_features(df)
+    categorical_cols = ["borough", "major_category", "minor_category"]
+    numeric_cols = [
+        "year", "month_sin", "month_cos",
+        "crimes_last_month", "avg_last_3_months",
+    ]
+
+    train_mask = df["year"] <= train_until_year
+    X_train, X_test = X[train_mask], X[~train_mask]
+    y_train, y_test = y[train_mask], y[~train_mask]
+
+    preprocessor = build_preprocessor(categorical_cols, numeric_cols)
+    return X_train, X_test, y_train, y_test, preprocessor, df
 
 
 def preprocess_and_split(
@@ -68,11 +117,18 @@ def preprocess_and_split(
     test_size: float = 0.3,
     random_state: int = 42,
 ):
-    """Full preprocessing pipeline: features -> preprocessor -> split (classification)."""
+    """Full preprocessing pipeline: features -> preprocessor -> split (classification).
+
+    DEPRECATED: Use temporal_preprocess_and_split to avoid data leakage.
+    """
+    df = add_lag_features(df)
     y = create_classification_target(df)
     X = prepare_features(df)
     categorical_cols = ["borough", "major_category", "minor_category"]
-    numeric_cols = ["year", "month_sin", "month_cos"]
+    numeric_cols = [
+        "year", "month_sin", "month_cos",
+        "crimes_last_month", "avg_last_3_months",
+    ]
 
     preprocessor = build_preprocessor(categorical_cols, numeric_cols)
     X_train, X_test, y_train, y_test = train_test_split(
