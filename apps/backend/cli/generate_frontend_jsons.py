@@ -36,9 +36,11 @@ def read_latest_metrics() -> dict | None:
         print(f"  [WARN] Metrics file is empty: {METRICS_FILE}", file=sys.stderr)
         return None
     last = json.loads(lines[-1])
-    print(f"  [OK]   Latest run: {last.get('timestamp', '?')}  "
-          f"duration={last.get('total_duration_seconds', '?')}s  "
-          f"records={last.get('records_initial', '?')} -> {last.get('records_final', '?')}")
+    print(
+        f"  [OK]   Latest run: {last.get('timestamp', '?')}  "
+        f"duration={last.get('total_duration_seconds', '?')}s  "
+        f"records={last.get('records_initial', '?')} -> {last.get('records_final', '?')}"
+    )
     return last
 
 
@@ -54,7 +56,11 @@ def to_production_run(metrics: dict) -> dict:
             entry["records_in"] = s["records_in"]
         if s.get("records_out") is not None:
             entry["records_out"] = s["records_out"]
-        if s.get("records_in") is not None and s.get("records_out") is not None and s["records_in"] > 0:
+        if (
+            s.get("records_in") is not None
+            and s.get("records_out") is not None
+            and s["records_in"] > 0
+        ):
             reduction = (1 - s["records_out"] / s["records_in"]) * 100
             entry["reduction_pct"] = round(reduction, 1)
         stages_out.append(entry)
@@ -101,7 +107,9 @@ def update_stats(stats: dict, run: dict) -> dict:
 
 def main(argv: list[str] | None = None):
     parser = argparse.ArgumentParser(description="Generate frontend JSONs from pipeline metrics")
-    parser.add_argument("--dry-run", action="store_true", help="Print what would change without writing")
+    parser.add_argument(
+        "--dry-run", action="store_true", help="Print what would change without writing"
+    )
     args = parser.parse_args(argv)
 
     latest = read_latest_metrics()
@@ -110,7 +118,9 @@ def main(argv: list[str] | None = None):
         return
 
     run = to_production_run(latest)
-    print(f"  [OK]   Built production run entry: {run['run_id']}  {run['mode']}  {run['duration_seconds']}s")
+    print(
+        f"  [OK]   Built production run entry: {run['run_id']}  {run['mode']}  {run['duration_seconds']}s"
+    )
 
     # --- Update pipeline_logs.json ---
     if not LOGS_FILE.exists():

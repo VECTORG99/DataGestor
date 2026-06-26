@@ -148,6 +148,7 @@ def main():
         # Generate frontend JSONs from collected metrics
         try:
             from apps.backend.cli.generate_frontend_jsons import main as gen_jsons
+
             gen_jsons(argv=[])
         except Exception as e:
             logging.warning(f"No se pudieron generar los JSONs del frontend: {e}")

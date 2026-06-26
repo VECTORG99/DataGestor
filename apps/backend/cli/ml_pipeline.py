@@ -70,8 +70,7 @@ def main():
         df, train_until_year=2014
     )
     logging.info(
-        f"  Train: {len(X_train)} registros (≤ 2014) | "
-        f"Test: {len(X_test)} registros (≥ 2015)"
+        f"  Train: {len(X_train)} registros (≤ 2014) | " f"Test: {len(X_test)} registros (≥ 2015)"
     )
     X_train_t = pre.fit_transform(X_train)
     X_test_t = pre.transform(X_test)

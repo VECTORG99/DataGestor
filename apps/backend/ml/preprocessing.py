@@ -41,9 +41,8 @@ def add_lag_features(df: pd.DataFrame) -> pd.DataFrame:
     group_cols = ["borough", "major_category", "minor_category"]
 
     df["crimes_last_month"] = df.groupby(group_cols)["total_crimes"].shift(1)
-    df["avg_last_3_months"] = (
-        df.groupby(group_cols)["total_crimes"]
-        .transform(lambda x: x.rolling(3, min_periods=1).mean())
+    df["avg_last_3_months"] = df.groupby(group_cols)["total_crimes"].transform(
+        lambda x: x.rolling(3, min_periods=1).mean()
     )
 
     # Fill NaN from first month of each group with 0
@@ -100,8 +99,11 @@ def temporal_preprocess_and_split(
     X = prepare_features(df)
     categorical_cols = ["borough", "major_category", "minor_category"]
     numeric_cols = [
-        "year", "month_sin", "month_cos",
-        "crimes_last_month", "avg_last_3_months",
+        "year",
+        "month_sin",
+        "month_cos",
+        "crimes_last_month",
+        "avg_last_3_months",
     ]
 
     train_mask = df["year"] <= train_until_year
@@ -126,8 +128,11 @@ def preprocess_and_split(
     X = prepare_features(df)
     categorical_cols = ["borough", "major_category", "minor_category"]
     numeric_cols = [
-        "year", "month_sin", "month_cos",
-        "crimes_last_month", "avg_last_3_months",
+        "year",
+        "month_sin",
+        "month_cos",
+        "crimes_last_month",
+        "avg_last_3_months",
     ]
 
     preprocessor = build_preprocessor(categorical_cols, numeric_cols)

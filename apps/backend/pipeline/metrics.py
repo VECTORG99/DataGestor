@@ -11,6 +11,7 @@ from config import settings
 
 try:
     import psutil
+
     HAS_PSUTIL = True
 except ImportError:
     HAS_PSUTIL = False
