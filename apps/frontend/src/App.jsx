@@ -1065,21 +1065,21 @@ export default function App() {
                 </Paper>
               </Grid>
               <Grid item xs={12} md={12}>
-                <Paper sx={{ p: 3, textAlign: "center" }}>
-                  <Typography variant="subtitle2" gutterBottom fontWeight="bold" sx={{ mb: 2 }}>
+                <Paper sx={{ p: 2, textAlign: "center" }}>
+                  <Typography variant="subtitle2" gutterBottom fontWeight="bold">
                     Curva ROC — Receiver Operating Characteristic
                   </Typography>
                   <Box sx={{ position: "relative", width: "100%", mx: "auto" }}>
-                    <svg viewBox="0 0 500 440" style={{ width: "100%", height: "auto", display: "block" }}>
+                    <svg viewBox="0 0 500 500" style={{ width: "100%", height: "auto", display: "block" }}>
                       <defs>
                         <clipPath id="plotArea">
-                          <rect x="60" y="20" width="420" height="370" />
+                          <rect x="65" y="15" width="420" height="430" />
                         </clipPath>
                       </defs>
 
                       {/* fondo del area del grafico */}
-                      <rect x="60" y="20" width="420" height="370" fill="#fafbfc" rx="4" />
-                      <rect x="60" y="20" width="420" height="370" fill="none" stroke="#d0d0d0" strokeWidth="1" />
+                      <rect x="65" y="15" width="420" height="430" fill="#fafbfc" rx="3" />
+                      <rect x="65" y="15" width="420" height="430" fill="none" stroke="#d0d0d0" strokeWidth="1" />
 
                       {/* area sombreada bajo la curva ROC */}
                       <polygon
@@ -1088,72 +1088,72 @@ export default function App() {
                         clipPath="url(#plotArea)"
                         points={(() => {
                           const pts = mlMetrics.roc_curve.fpr.map((f, i) => {
-                            const x = 60 + f * 420;
-                            const y = 390 - mlMetrics.roc_curve.tpr[i] * 370;
+                            const x = 65 + f * 420;
+                            const y = 445 - mlMetrics.roc_curve.tpr[i] * 430;
                             return `${x},${y}`;
                           });
-                          return `${60},390 ${pts.join(" ")} ${480},390`;
+                          return `${65},445 ${pts.join(" ")} ${485},445`;
                         })()}
                       />
 
                       {/* grid lines horizontales + Y axis ticks */}
                       {[0, 0.25, 0.5, 0.75, 1].map((v) => {
-                        const y = 390 - v * 370;
+                        const y = 445 - v * 430;
                         return (
                           <g key={`y${v}`}>
-                            <line x1="60" y1={y} x2="480" y2={y} stroke="#e0e0e0" strokeWidth="1" />
-                            <text x="52" y={y + 4} fontSize="11" textAnchor="end" fill="#555">{v.toFixed(2)}</text>
+                            <line x1="65" y1={y} x2="485" y2={y} stroke="#e0e0e0" strokeWidth="1" />
+                            <text x="58" y={y + 4} fontSize="11" textAnchor="end" fill="#555">{v.toFixed(2)}</text>
                           </g>
                         );
                       })}
                       {/* label eje Y */}
-                      <text x="14" y="200" fontSize="12" textAnchor="middle" fill="#222" fontWeight="bold" transform="rotate(-90, 14, 200)">
+                      <text x="16" y="230" fontSize="11" textAnchor="middle" fill="#222" fontWeight="bold" transform="rotate(-90, 16, 230)">
                         Tasa de Verdaderos Positivos (TPR)
                       </text>
-                      <text x="14" y="215" fontSize="9" textAnchor="middle" fill="#777" transform="rotate(-90, 14, 215)">
-                        = Sensibilidad = Recall — Aciertos reales capturados
+                      <text x="16" y="245" fontSize="8" textAnchor="middle" fill="#777" transform="rotate(-90, 16, 245)">
+                        = Sensibilidad = Recall
                       </text>
 
                       {/* grid lines verticales + X axis ticks */}
                       {[0, 0.25, 0.5, 0.75, 1].map((v) => {
-                        const x = 60 + v * 420;
+                        const x = 65 + v * 420;
                         return (
                           <g key={`x${v}`}>
-                            <line x1={x} y1="20" x2={x} y2="390" stroke="#e0e0e0" strokeWidth="1" />
-                            <text x={x} y="406" fontSize="11" textAnchor="middle" fill="#555">{v.toFixed(2)}</text>
+                            <line x1={x} y1="15" x2={x} y2="445" stroke="#e0e0e0" strokeWidth="1" />
+                            <text x={x} y="458" fontSize="11" textAnchor="middle" fill="#555">{v.toFixed(2)}</text>
                           </g>
                         );
                       })}
                       {/* label eje X */}
-                      <text x="270" y="425" fontSize="12" textAnchor="middle" fill="#222" fontWeight="bold">
+                      <text x="275" y="477" fontSize="11" textAnchor="middle" fill="#222" fontWeight="bold">
                         Tasa de Falsos Positivos (FPR)
                       </text>
-                      <text x="270" y="436" fontSize="9" textAnchor="middle" fill="#777">
+                      <text x="275" y="490" fontSize="8" textAnchor="middle" fill="#777">
                         = 1 − Especificidad — Alarmas falsas
                       </text>
 
                       {/* linea diagonal (clasificador aleatorio) */}
-                      <line x1="60" y1="390" x2="480" y2="20" stroke="#bbb" strokeWidth="1.5" strokeDasharray="6,4" />
-                      <text x="380" y="80" fontSize="9" textAnchor="middle" fill="#999" fontStyle="italic" transform="rotate(41, 380, 80)">Clasificador aleatorio (AUC = 0.5)</text>
+                      <line x1="65" y1="445" x2="485" y2="15" stroke="#bbb" strokeWidth="1.5" strokeDasharray="6,4" />
+                      <text x="375" y="85" fontSize="8" textAnchor="middle" fill="#999" fontStyle="italic" transform="rotate(44, 375, 85)">Aleatorio (AUC = 0.5)</text>
 
                       {/* linea ROC */}
                       <polyline
                         fill="none"
                         stroke="#1976d2"
-                        strokeWidth="3"
+                        strokeWidth="3.5"
                         strokeLinejoin="round"
                         clipPath="url(#plotArea)"
                         points={mlMetrics.roc_curve.fpr.map((f, i) => {
-                          const x = 60 + f * 420;
-                          const y = 390 - mlMetrics.roc_curve.tpr[i] * 370;
+                          const x = 65 + f * 420;
+                          const y = 445 - mlMetrics.roc_curve.tpr[i] * 430;
                           return `${x},${y}`;
                         }).join(" ")}
                       />
 
                       {/* recuadro AUC */}
-                      <rect x="370" y="28" width="100" height="44" rx="6" fill="#fff" stroke="#1976d2" strokeWidth="1.5" />
-                      <text x="420" y="48" fontSize="11" textAnchor="middle" fill="#555" fontWeight="bold">AUC</text>
-                      <text x="420" y="64" fontSize="16" textAnchor="middle" fill="#1976d2" fontWeight="bold">{mlMetrics.roc_auc.toFixed(4)}</text>
+                      <rect x="370" y="20" width="105" height="42" rx="5" fill="#fff" stroke="#1976d2" strokeWidth="1.5" />
+                      <text x="422" y="38" fontSize="10" textAnchor="middle" fill="#555" fontWeight="bold">AUC</text>
+                      <text x="422" y="54" fontSize="15" textAnchor="middle" fill="#1976d2" fontWeight="bold">{mlMetrics.roc_auc.toFixed(4)}</text>
                     </svg>
                   </Box>
                 </Paper>
