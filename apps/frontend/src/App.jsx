@@ -468,72 +468,40 @@ export default function App() {
 
       {/* Pipeline Overview — 4 cards explaining data flow */}
       <Grid container spacing={2} sx={{ mb: 4 }}>
-        {/* Stage 1: Raw BigQuery records */}
-        <Grid item xs={12} sm={6} md={3}>
-          <Card sx={{ borderTop: 3, borderColor: SURFACE_COLORS.raw }}>
-            <CardContent sx={{ py: 1.5 }}>
-              <Typography variant="caption" color="text.secondary" sx={{ textTransform: "uppercase", letterSpacing: 1 }}>Fase 1 — BigQuery</Typography>
-              <Typography variant="body2" color="text.secondary">Datos Crudos (LSOA)</Typography>
-              <Typography variant="h4" fontWeight="bold">~3,000,000</Typography>
-              <Typography variant="caption" color="text.secondary">Registros a nivel LSOA (~1500 hab.) del dataset público de Londres</Typography>
-            </CardContent>
-          </Card>
-        </Grid>
-
-        {/* Stage 2: Cleaning — show filtering steps */}
-        <Grid item xs={12} sm={6} md={3}>
-          <Card sx={{ borderTop: 3, borderColor: COLORS.accent }}>
-            <CardContent sx={{ py: 1.5 }}>
-              <Typography variant="caption" color="text.secondary" sx={{ textTransform: "uppercase", letterSpacing: 1 }}>Fase 2 — Limpieza</Typography>
-              <Typography variant="body2" color="text.secondary">Registros Eliminados</Typography>
-              <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5, mt: 0.5 }}>
-                {[
-                  { label: "Nulos", color: COLORS.danger },
-                  { label: "Meses inválidos", color: COLORS.accent },
-                  { label: "Años fuera de rango", color: COLORS.accent },
-                  { label: "Valores negativos", color: COLORS.danger },
-                  { label: "Duplicados", color: COLORS.accent },
-                  { label: "Normalización", color: COLORS.primary },
-                ].map((tag) => (
-                  <Box key={tag.label} sx={{ bgcolor: tag.color + "18", color: tag.color, borderRadius: 0.5, px: 0.8, py: 0.1, fontSize: 10, fontWeight: "medium", display: "inline-block" }}>
-                    {tag.label}
-                  </Box>
-                ))}
-              </Box>
-              <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 0.5 }}>
-                Se eliminan registros con datos inválidos antes de agregar
-              </Typography>
-            </CardContent>
-          </Card>
-        </Grid>
-
-        {/* Stage 3: Aggregation result */}
-        <Grid item xs={12} sm={6} md={3}>
-          <Card sx={{ borderTop: 3, borderColor: COLORS.secondary }}>
-            <CardContent sx={{ py: 1.5 }}>
-              <Typography variant="caption" color="text.secondary" sx={{ textTransform: "uppercase", letterSpacing: 1 }}>Fase 3 — Agregación</Typography>
-              <Typography variant="body2" color="text.secondary">Registros Limpios</Typography>
-              <Typography variant="h4" fontWeight="bold">{rows.length.toLocaleString()}</Typography>
-              <Typography variant="caption" color="text.secondary">
-                Agrupados por (borough, major_category, minor_category, year, month). Cada fila = suma de crímenes en ese grupo.
-              </Typography>
-            </CardContent>
-          </Card>
-        </Grid>
-
-        {/* Stage 4: Total Crimes — the actual crime count */}
-        <Grid item xs={12} sm={6} md={3}>
-          <Card sx={{ borderTop: 3, borderColor: COLORS.danger }}>
-            <CardContent sx={{ py: 1.5 }}>
-              <Typography variant="caption" color="text.secondary" sx={{ textTransform: "uppercase", letterSpacing: 1 }}>Total Reales</Typography>
-              <Typography variant="body2" color="text.secondary">Crímenes (Suma)</Typography>
-              <Typography variant="h4" fontWeight="bold" sx={{ color: COLORS.danger }}>{totalCrimes.toLocaleString()}</Typography>
-              <Typography variant="caption" color="text.secondary">
-                Suma de total_crimes en TODAS las filas. ¿Por qué no 3M? Los ~3M son filas LSOA (cada una con ~0.5 crímenes promedio), no crímenes individuales. 1.4M es la suma real.
-              </Typography>
-            </CardContent>
-          </Card>
-        </Grid>
+        {[
+          { stage: "crudos", borderColor: SURFACE_COLORS.raw, header: "Fase 1 — BigQuery", title: (s) => s?.label || "Datos Crudos (LSOA)", value: (s) => s?.records || "~3,000,000", desc: (s) => s?.description || "Registros a nivel LSOA (~1500 hab.) del dataset público de Londres" },
+          { stage: "limpieza", borderColor: COLORS.accent, header: "Fase 2 — Limpieza", title: () => "Registros Eliminados", value: (s) => s?.label || "Limpieza Aplicada", desc: (s) => s?.description || "Se eliminan registros con datos inválidos antes de agregar", removed: true },
+          { stage: "agregacion", borderColor: COLORS.secondary, header: "Fase 3 — Agregación", title: (s) => s?.label || "Registros Limpios", value: (s) => s?.records_out || rows.length.toLocaleString(), desc: (s) => s?.description || "Agrupados por (borough, major_category, minor_category, year, month)" },
+          { stage: "total_crimenes", borderColor: COLORS.danger, header: "Total Reales", title: (s) => s?.label || "Crímenes (Suma)", value: (s) => s?.records || totalCrimes.toLocaleString(), desc: (s) => s?.note || "Suma de total_crimes en todas las filas" },
+        ].map((cfg) => {
+          const stat = pipelineStats?.stages?.find((s) => s.stage === cfg.stage);
+          return (
+            <Grid item xs={12} sm={6} md={3} key={cfg.stage}>
+              <Card sx={{ borderTop: 3, borderColor: cfg.borderColor }}>
+                <CardContent sx={{ py: 1.5 }}>
+                  <Typography variant="caption" color="text.secondary" sx={{ textTransform: "uppercase", letterSpacing: 1 }}>{cfg.header}</Typography>
+                  <Typography variant="body2" color="text.secondary">{cfg.title(stat)}</Typography>
+                  <Typography variant="h4" fontWeight="bold">{cfg.value(stat)}</Typography>
+                  <Typography variant="caption" color="text.secondary">{cfg.desc(stat)}</Typography>
+                  {cfg.removed && stat?.removed_reasons && (
+                    <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5, mt: 1 }}>
+                      {stat.removed_reasons.map((reason, ri) => (
+                        <Box key={ri} sx={{ bgcolor: COLORS.accent + "18", color: COLORS.accent, borderRadius: 0.5, px: 0.8, py: 0.2, fontSize: 9, display: "inline-block" }}>
+                          {reason}
+                        </Box>
+                      ))}
+                    </Box>
+                  )}
+                  {cfg.stage === "total_crimenes" && stat?.why_not_3m && (
+                    <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 0.5, fontStyle: "italic" }}>
+                      {stat.why_not_3m}
+                    </Typography>
+                  )}
+                </CardContent>
+              </Card>
+            </Grid>
+          );
+        })}
       </Grid>
 
       {/* Top-level snapshot cards */}
@@ -570,10 +538,12 @@ export default function App() {
           { label: "Errores en logs", value: recentErrors.length, detail: recentWarnings.length ? `${recentWarnings.length} advertencias recientes; sin fallos críticos detectados.` : "Sin errores críticos recientes.", color: recentErrors.length ? COLORS.danger : COLORS.secondary },
           { label: "Estabilidad", value: pipelineStable ? "Estable" : "Revisar", detail: pipelineStable ? "Pipeline completa etapas sin cierres inesperados en logs disponibles." : "Hay errores recientes o faltan logs completos.", color: pipelineStable ? COLORS.secondary : COLORS.accent },
           { label: "Mayor carga detectada", value: slowestStage?.stage || "No disponible", detail: slowestStage ? `Etapa más lenta: ${slowestStage.duration_s.toFixed(1)}s.` : "No hay detalle de etapas.", color: COLORS.purple },
+          { label: "Completitud", value: latestRun?.completeness_pct !== undefined ? `${latestRun.completeness_pct}%` : "N/A", detail: "Porcentaje de datos completos sin nulos en columnas críticas.", color: COLORS.secondary },
+          { label: "Advertencias", value: latestRun?.warnings_count !== undefined ? latestRun.warnings_count : "N/A", detail: latestRun?.warnings_count ? `${latestRun.warnings_count} warnings registrados durante la ejecución.` : "Sin advertencias en el último run.", color: latestRun?.warnings_count ? COLORS.accent : COLORS.secondary },
           { label: "Consumo RAM", value: "No instrumentado", detail: "Agregar psutil/tracemalloc para medir memoria durante entrenamiento.", color: SURFACE_COLORS.raw },
           { label: "Consumo CPU", value: "No instrumentado", detail: "Agregar psutil para %CPU por etapa y entorno.", color: SURFACE_COLORS.raw },
         ].map((metric) => (
-          <Grid item xs={12} sm={6} md={4} key={metric.label}>
+          <Grid item xs={12} sm={6} md={3} key={metric.label}>
             <Card sx={{ borderTop: 3, borderColor: metric.color }}>
               <CardContent>
                 <Typography variant="body2" color="text.secondary">{metric.label}</Typography>
@@ -601,6 +571,8 @@ export default function App() {
               ["Tiempo total", "Duración por volumen y entorno", latestRun ? `${latestRun.duration_seconds.toFixed(1)}s en ${latestRun.mode}` : "Sin run registrado", slowestStage ? `Optimizar ${slowestStage.stage}` : "Ejecutar pipeline"],
               ["Errores", "Errores críticos, warnings o fallos parciales", `${recentErrors.length} errores · ${recentWarnings.length} warnings`, recentErrors.length ? "Revisar eventos ERROR" : "Warnings menores no bloquean ejecución"],
               ["Estabilidad", "Etapas completas sin cierres inesperados", pipelineStable ? "Completa correctamente" : "Incompleta o sin logs", "Mantener monitoreo por etapa"],
+              ["Completitud", "% datos sin nulos en columnas críticas", latestRun ? `${latestRun.completeness_pct}%` : "N/A", latestRun?.completeness_pct < 100 ? "Revisar calidad de datos" : "Monitorear en cada ejecución"],
+              ["Advertencias", "Warnings registrados en la ejecución", latestRun ? `${latestRun.warnings_count} warnings` : "N/A", latestRun?.warnings_count ? "Revisar cada warning" : "Mantener monitoreo"],
               ["RAM", "Memoria durante ingesta/entrenamiento", "No instrumentado", "Agregar psutil/tracemalloc"],
               ["CPU", "%CPU por etapa", "No instrumentado", "Agregar psutil y tabla por entorno"],
               ["Cuello de botella", "Etapa con más carga", slowestStage ? `${slowestStage.stage} (${slowestStage.duration_s.toFixed(1)}s)` : "Sin datos", slowestStage ? "Priorizar esa etapa" : "Registrar etapas"],
@@ -652,9 +624,44 @@ export default function App() {
                             {s.records_loaded && <Typography variant="caption" color="text.secondary" sx={{ fontSize: 10 }}>{s.records_loaded.toLocaleString()} registros</Typography>}
                           </CardContent>
                         </Card>
-                      </Grid>
+            </Grid>
                     ))}
                   </Grid>
+                  {/* Stage timing bar */}
+                  <Box sx={{ display: "flex", mt: 1, height: 18, borderRadius: 1, overflow: "hidden", bgcolor: "#eee" }}>
+                    {(() => {
+                      const total = run.stages.reduce((acc, s) => acc + s.duration_s, 0);
+                      const stageColors = ["#1976d2", "#ff9800", "#4caf50", "#9c27b0", "#f44336", "#00bcd4", "#607d8b", "#e91e63"];
+                      return run.stages.map((s, si) => (
+                        <Box
+                          key={si}
+                          sx={{
+                            width: `${(s.duration_s / total) * 100}%`,
+                            bgcolor: stageColors[si % stageColors.length],
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            minWidth: s.duration_s / total > 0.08 ? 40 : 0,
+                          }}
+                        >
+                          <Typography variant="caption" sx={{ color: "#fff", fontSize: 9, fontWeight: "bold", lineHeight: 1 }}>
+                            {s.duration_s.toFixed(1)}s
+                          </Typography>
+                        </Box>
+                      ));
+                    })()}
+                  </Box>
+                  <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1, mt: 0.5 }}>
+                    {(() => {
+                      const stageColors = ["#1976d2", "#ff9800", "#4caf50", "#9c27b0", "#f44336", "#00bcd4", "#607d8b", "#e91e63"];
+                      return run.stages.map((s, si) => (
+                        <Box key={si} sx={{ display: "flex", alignItems: "center", gap: 0.3 }}>
+                          <Box sx={{ width: 8, height: 8, borderRadius: "50%", bgcolor: stageColors[si % stageColors.length], flexShrink: 0 }} />
+                          <Typography variant="caption" sx={{ fontSize: 9, color: "text.secondary", whiteSpace: "nowrap" }}>{s.stage}</Typography>
+                        </Box>
+                      ));
+                    })()}
+                  </Box>
                 </Box>
               ))}
 
@@ -665,6 +672,7 @@ export default function App() {
                   <TableRow>
                     <TableCell sx={{ fontWeight: "bold", fontSize: 11, py: 0.5 }}>Paso</TableCell>
                     <TableCell sx={{ fontWeight: "bold", fontSize: 11, py: 0.5 }} align="right">Registros Afectados</TableCell>
+                    <TableCell sx={{ fontWeight: "bold", fontSize: 11, py: 0.5 }}>Método</TableCell>
                     <TableCell sx={{ fontWeight: "bold", fontSize: 11, py: 0.5 }}>Detalle</TableCell>
                   </TableRow>
                 </TableHead>
@@ -677,6 +685,7 @@ export default function App() {
                           <Chip label={step.count.toLocaleString()} size="small" color={step.count > 0 ? "warning" : "default"} sx={{ height: 18, fontSize: 10 }} />
                         ) : "—"}
                       </TableCell>
+                      <TableCell sx={{ fontSize: 11, py: 0.5 }}>{step.method || "—"}</TableCell>
                       <TableCell sx={{ fontSize: 11, py: 0.5, color: "text.secondary" }}>{step.detail}</TableCell>
                     </TableRow>
                   ))}
@@ -980,6 +989,14 @@ export default function App() {
                 </Grid>
               ))}
             </Grid>
+            {mlMetrics.duration_seconds && (
+              <Typography variant="caption" color="text.secondary" sx={{ display: "block", textAlign: "center", mb: 1 }}>
+                Tiempo de entrenamiento: {mlMetrics.duration_seconds.toFixed(1)}s
+                {mlMetrics.hyperparameters && (
+                  <> &middot; Parámetros: random_state={mlMetrics.hyperparameters.random_state}, max_iter={mlMetrics.hyperparameters.logreg_max_iter}, n_estimators={mlMetrics.hyperparameters.rf_n_estimators}, min_samples_leaf={mlMetrics.hyperparameters.rf_min_samples_leaf}</>
+                )}
+              </Typography>
+            )}
 
             <Box sx={{ mb: 2 }}>
               <Box
