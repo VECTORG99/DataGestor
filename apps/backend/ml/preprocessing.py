@@ -1,5 +1,7 @@
 """Preprocessing module: feature engineering, encoding, targets, split."""
 
+import logging
+
 import numpy as np
 import pandas as pd
 from sklearn.model_selection import train_test_split
