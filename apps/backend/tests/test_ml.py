@@ -80,14 +80,16 @@ class TestPreprocessing:
 class TestClassification:
     def test_train_logistic_regression(self, sample_df):
         from apps.backend.ml.preprocessing import (
+            add_lag_features,
             build_preprocessor,
             create_classification_target,
             prepare_features,
         )
         from apps.backend.ml.classification import train_logistic_regression
 
-        X = prepare_features(sample_df)
-        y = create_classification_target(sample_df)
+        df = add_lag_features(sample_df)
+        X = prepare_features(df)
+        y = create_classification_target(df)
         preprocessor = build_preprocessor(
             ["borough", "major_category", "minor_category"],
             ["year", "month_sin", "month_cos"],
@@ -99,6 +101,7 @@ class TestClassification:
 
     def test_evaluate_classification_returns_all_metrics(self, sample_df):
         from apps.backend.ml.preprocessing import (
+            add_lag_features,
             build_preprocessor,
             create_classification_target,
             prepare_features,
@@ -108,8 +111,9 @@ class TestClassification:
             train_logistic_regression,
         )
 
-        X = prepare_features(sample_df)
-        y = create_classification_target(sample_df)
+        df = add_lag_features(sample_df)
+        X = prepare_features(df)
+        y = create_classification_target(df)
         preprocessor = build_preprocessor(
             ["borough", "major_category", "minor_category"],
             ["year", "month_sin", "month_cos"],
@@ -123,10 +127,14 @@ class TestClassification:
         assert len(metrics["confusion_matrix"][0]) == 2
 
     def test_train_crime_regressor(self, sample_df):
-        from apps.backend.ml.preprocessing import build_preprocessor, prepare_features
+        from apps.backend.ml.preprocessing import (
+            add_lag_features,
+            build_preprocessor,
+            prepare_features,
+        )
         from apps.backend.ml.classification import evaluate_regression, train_crime_regressor
 
-        X = prepare_features(sample_df)
+        X = prepare_features(add_lag_features(sample_df))
         y = sample_df["total_crimes"].values
         preprocessor = build_preprocessor(
             ["borough", "major_category", "minor_category"],
