@@ -3,6 +3,80 @@
     {
       "run_id": "2026-06-26",
       "mode": "Produccion",
+      "duration_seconds": 260.2,
+      "stages": [
+        {
+          "stage": "ingesta",
+          "duration_s": 242.15,
+          "records_out": 3000000
+        },
+        {
+          "stage": "limpieza",
+          "duration_s": 1.86,
+          "records_in": 3000000,
+          "records_out": 85728,
+          "reduction_pct": 97.1
+        },
+        {
+          "stage": "validacion",
+          "duration_s": 0.01
+        },
+        {
+          "stage": "guardado",
+          "duration_s": 0.19
+        },
+        {
+          "stage": "carga_supabase",
+          "duration_s": 15.24
+        }
+      ],
+      "total_records_in": 3000000,
+      "total_records_out": 85728,
+      "completeness_pct": 100.0,
+      "warnings_count": 0,
+      "peak_memory_mb": 1105.0,
+      "avg_cpu_percent": 92.2
+    },
+    {
+      "run_id": "2026-06-26",
+      "mode": "Produccion",
+      "duration_seconds": 260.2,
+      "stages": [
+        {
+          "stage": "ingesta",
+          "duration_s": 242.15,
+          "records_out": 3000000
+        },
+        {
+          "stage": "limpieza",
+          "duration_s": 1.86,
+          "records_in": 3000000,
+          "records_out": 85728,
+          "reduction_pct": 97.1
+        },
+        {
+          "stage": "validacion",
+          "duration_s": 0.01
+        },
+        {
+          "stage": "guardado",
+          "duration_s": 0.19
+        },
+        {
+          "stage": "carga_supabase",
+          "duration_s": 15.24
+        }
+      ],
+      "total_records_in": 3000000,
+      "total_records_out": 85728,
+      "completeness_pct": 100.0,
+      "warnings_count": 0,
+      "peak_memory_mb": 1105.0,
+      "avg_cpu_percent": 92.2
+    },
+    {
+      "run_id": "2026-06-26",
+      "mode": "Produccion",
       "duration_seconds": 233.1,
       "stages": [
         {
@@ -110,80 +184,6 @@
       "warnings_count": 0,
       "peak_memory_mb": 139.5,
       "avg_cpu_percent": 225.8
-    },
-    {
-      "run_id": "2026-06-26",
-      "mode": "Demo",
-      "duration_seconds": 0.1,
-      "stages": [
-        {
-          "stage": "ingesta",
-          "duration_s": 0.02,
-          "records_out": 150
-        },
-        {
-          "stage": "limpieza",
-          "duration_s": 0.03,
-          "records_in": 150,
-          "records_out": 146,
-          "reduction_pct": 2.7
-        },
-        {
-          "stage": "validacion",
-          "duration_s": 0.0
-        },
-        {
-          "stage": "guardado",
-          "duration_s": 0.0
-        },
-        {
-          "stage": "carga_supabase",
-          "duration_s": 0.0
-        }
-      ],
-      "total_records_in": 150,
-      "total_records_out": 146,
-      "completeness_pct": 100.0,
-      "warnings_count": 0,
-      "peak_memory_mb": 139.5,
-      "avg_cpu_percent": 225.8
-    },
-    {
-      "run_id": "2026-06-21T07:18:33",
-      "mode": "Produccion",
-      "duration_seconds": 363.8,
-      "stages": [
-        {
-          "stage": "Ingesta BigQuery",
-          "duration_s": 320.94
-        },
-        {
-          "stage": "Limpieza y Agregación",
-          "duration_s": 6.85,
-          "records_in": 3000000,
-          "records_out": 77524,
-          "reduction_pct": 97.4
-        },
-        {
-          "stage": "Validación",
-          "duration_s": 0.02
-        },
-        {
-          "stage": "Guardado",
-          "duration_s": 0.2
-        },
-        {
-          "stage": "Carga Supabase",
-          "duration_s": 33.27,
-          "records_loaded": 77524
-        }
-      ],
-      "total_records_in": 3000000,
-      "total_records_out": 77524,
-      "completeness_pct": 100.0,
-      "warnings_count": 0,
-      "peak_memory_mb": 245.3,
-      "avg_cpu_percent": 18.7
     }
   ],
   "cleaning_details": [
