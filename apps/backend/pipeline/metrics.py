@@ -7,9 +7,14 @@ from logging.handlers import RotatingFileHandler
 from pathlib import Path
 from typing import Optional
 
-import psutil
-
 from config import settings
+
+try:
+    import psutil
+    HAS_PSUTIL = True
+except ImportError:
+    HAS_PSUTIL = False
+    psutil = None
 
 
 class JsonFormatter(logging.Formatter):
@@ -143,13 +148,15 @@ class MetricsCollector:
         self._stage_start = None
         self._current_stage = None
         self._warnings_before = 0
-        self._process = psutil.Process()
+        self._process = psutil.Process() if HAS_PSUTIL else None
         self._cpu_samples: list[float] = []
         self._peak_memory = 0.0
-        # First cpu_percent() call returns 0, so sample once to warm it up
-        self._process.cpu_percent(interval=None)
+        if self._process:
+            self._process.cpu_percent(interval=None)  # warm-up
 
     def _sample_resources(self):
+        if not self._process:
+            return
         try:
             mem = self._process.memory_info().rss / (1024 * 1024)
             cpu = self._process.cpu_percent(interval=None)
