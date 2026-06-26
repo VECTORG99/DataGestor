@@ -31,7 +31,7 @@ def read_latest_metrics() -> dict | None:
         print(f"  [WARN] Metrics file not found: {METRICS_FILE}", file=sys.stderr)
         return None
     with open(METRICS_FILE) as f:
-        lines = [l for l in f.read().splitlines() if l.strip()]
+        lines = [line for line in f.read().splitlines() if line.strip()]
     if not lines:
         print(f"  [WARN] Metrics file is empty: {METRICS_FILE}", file=sys.stderr)
         return None
@@ -119,7 +119,8 @@ def main(argv: list[str] | None = None):
 
     run = to_production_run(latest)
     print(
-        f"  [OK]   Built production run entry: {run['run_id']}  {run['mode']}  {run['duration_seconds']}s"
+        f"  [OK]   Built production run entry: {run['run_id']}"
+        f"  {run['mode']}  {run['duration_seconds']}s"
     )
 
     # --- Update pipeline_logs.json ---
