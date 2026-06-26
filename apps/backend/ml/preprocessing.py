@@ -7,8 +7,6 @@ from the target and are not providable by the single-row predict API.
 
 import logging
 
-import logging
-
 import numpy as np
 import pandas as pd
 from sklearn.model_selection import train_test_split
