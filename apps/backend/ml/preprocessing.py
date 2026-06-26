@@ -92,7 +92,8 @@ def temporal_preprocess_and_split(
 ):
     """Temporal split: train on years ≤ train_until_year, test on later years.
 
-    This avoids data leakage from future data inflating metrics.
+    Falls back to random split if temporal split yields < 1 training sample
+    (e.g. demo data that doesn't span the boundary).
     """
     df = add_lag_features(df)
     y = create_classification_target(df)
@@ -109,6 +110,16 @@ def temporal_preprocess_and_split(
     train_mask = df["year"] <= train_until_year
     X_train, X_test = X[train_mask], X[~train_mask]
     y_train, y_test = y[train_mask], y[~train_mask]
+
+    if len(X_train) < 1:
+        logging.warning(
+            "Temporal split: 0 registros de entrenamiento (todos los datos son > %s). "
+            "Usando random split como fallback.",
+            train_until_year,
+        )
+        preprocessor = build_preprocessor(categorical_cols, numeric_cols)
+        X_train, X_test, y_train, y_test, _ = preprocess_and_split(df, test_size=0.3)
+        return X_train, X_test, y_train, y_test, preprocessor, df
 
     preprocessor = build_preprocessor(categorical_cols, numeric_cols)
     return X_train, X_test, y_train, y_test, preprocessor, df

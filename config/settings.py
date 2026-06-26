@@ -152,7 +152,7 @@ BOROUGH_CORRECTIONS = {
 SAMPLE_N_ROWS = int(os.getenv("SAMPLE_N_ROWS", "150"))
 SAMPLE_RANDOM_SEED = int(os.getenv("SAMPLE_RANDOM_SEED", "42"))
 SAMPLE_POISSON_MEAN = int(os.getenv("SAMPLE_POISSON_MEAN", "15"))
-SAMPLE_YEARS = [int(y) for y in os.getenv("SAMPLE_YEARS", "2016,2017,2018,2019").split(",")]
+SAMPLE_YEARS = [int(y) for y in os.getenv("SAMPLE_YEARS", "2008,2009,2010,2011,2012,2013,2014,2015,2016").split(",")]
 SAMPLE_LSOA_START = int(os.getenv("SAMPLE_LSOA_START", "1"))
 SAMPLE_LSOA_STOP = int(os.getenv("SAMPLE_LSOA_STOP", "200"))
 
