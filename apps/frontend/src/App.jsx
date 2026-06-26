@@ -1110,7 +1110,7 @@ export default function App() {
                       <text x="16" y="230" fontSize="11" textAnchor="middle" fill="#222" fontWeight="bold" transform="rotate(-90, 16, 230)">
                         Tasa de Verdaderos Positivos (TPR)
                       </text>
-                      <text x="16" y="350" fontSize="8" textAnchor="middle" fill="#777" transform="rotate(-90, 16, 350)">
+                      <text x="16" y="370" fontSize="8" textAnchor="middle" fill="#777" transform="rotate(-90, 16, 370)">
                         = Sensibilidad = Recall
                       </text>
 
