@@ -1048,18 +1048,18 @@ export default function App() {
             </Box>
 
             <Grid container spacing={2}>
-              <Grid item xs={12} md={6}>
-                <Paper sx={{ p: 1.5, textAlign: "center" }}>
-                  <Typography variant="subtitle2" gutterBottom>Matriz de Confusión</Typography>
+              <Grid item xs={12} md={12}>
+                <Paper sx={{ p: 3, textAlign: "center" }}>
+                  <Typography variant="subtitle2" gutterBottom fontWeight="bold">Matriz de Confusión</Typography>
                   <Box sx={{ display: "flex", justifyContent: "center" }}>
-                    <Box sx={{ display: "inline-grid", gridTemplateColumns: "auto 1fr 1fr", gap: 1, alignItems: "center" }}>
-                      <Box /><Typography variant="caption" sx={{ fontWeight: "bold", textAlign: "center" }}>Pred. Bajo</Typography><Typography variant="caption" sx={{ fontWeight: "bold", textAlign: "center" }}>Pred. Alto</Typography>
-                      <Typography variant="caption" sx={{ fontWeight: "bold" }}>Real Bajo</Typography>
-                      <Box sx={{ bgcolor: SURFACE_COLORS.successSoft, border: 1, borderColor: "success.main", borderRadius: 1, px: 2, py: 1 }}><Typography align="center" fontWeight="bold">{mlMetrics.true_negatives.toLocaleString()}</Typography><Typography variant="caption" display="block" align="center">VN</Typography></Box>
-                      <Box sx={{ bgcolor: SURFACE_COLORS.dangerSoft, border: 1, borderColor: "error.main", borderRadius: 1, px: 2, py: 1 }}><Typography align="center" fontWeight="bold">{mlMetrics.false_positives.toLocaleString()}</Typography><Typography variant="caption" display="block" align="center">FP</Typography></Box>
-                      <Typography variant="caption" sx={{ fontWeight: "bold" }}>Real Alto</Typography>
-                      <Box sx={{ bgcolor: SURFACE_COLORS.dangerSoft, border: 1, borderColor: "error.main", borderRadius: 1, px: 2, py: 1 }}><Typography align="center" fontWeight="bold">{mlMetrics.false_negatives.toLocaleString()}</Typography><Typography variant="caption" display="block" align="center">FN</Typography></Box>
-                      <Box sx={{ bgcolor: SURFACE_COLORS.successSoft, border: 1, borderColor: "success.main", borderRadius: 1, px: 2, py: 1 }}><Typography align="center" fontWeight="bold">{mlMetrics.true_positives.toLocaleString()}</Typography><Typography variant="caption" display="block" align="center">VP</Typography></Box>
+                    <Box sx={{ display: "inline-grid", gridTemplateColumns: "auto 1fr 1fr", gap: 2, alignItems: "center" }}>
+                      <Box /><Typography variant="body2" sx={{ fontWeight: "bold", textAlign: "center" }}>Pred. Bajo</Typography><Typography variant="body2" sx={{ fontWeight: "bold", textAlign: "center" }}>Pred. Alto</Typography>
+                      <Typography variant="body2" sx={{ fontWeight: "bold" }}>Real Bajo</Typography>
+                      <Box sx={{ bgcolor: SURFACE_COLORS.successSoft, border: 1, borderColor: "success.main", borderRadius: 1, px: 3, py: 2 }}><Typography align="center" fontWeight="bold">{mlMetrics.true_negatives.toLocaleString()}</Typography><Typography variant="caption" display="block" align="center">VN</Typography></Box>
+                      <Box sx={{ bgcolor: SURFACE_COLORS.dangerSoft, border: 1, borderColor: "error.main", borderRadius: 1, px: 3, py: 2 }}><Typography align="center" fontWeight="bold">{mlMetrics.false_positives.toLocaleString()}</Typography><Typography variant="caption" display="block" align="center">FP</Typography></Box>
+                      <Typography variant="body2" sx={{ fontWeight: "bold" }}>Real Alto</Typography>
+                      <Box sx={{ bgcolor: SURFACE_COLORS.dangerSoft, border: 1, borderColor: "error.main", borderRadius: 1, px: 3, py: 2 }}><Typography align="center" fontWeight="bold">{mlMetrics.false_negatives.toLocaleString()}</Typography><Typography variant="caption" display="block" align="center">FN</Typography></Box>
+                      <Box sx={{ bgcolor: SURFACE_COLORS.successSoft, border: 1, borderColor: "success.main", borderRadius: 1, px: 3, py: 2 }}><Typography align="center" fontWeight="bold">{mlMetrics.true_positives.toLocaleString()}</Typography><Typography variant="caption" display="block" align="center">VP</Typography></Box>
                     </Box>
                   </Box>
                 </Paper>
@@ -1110,7 +1110,7 @@ export default function App() {
                       <text x="16" y="230" fontSize="11" textAnchor="middle" fill="#222" fontWeight="bold" transform="rotate(-90, 16, 230)">
                         Tasa de Verdaderos Positivos (TPR)
                       </text>
-                      <text x="16" y="245" fontSize="8" textAnchor="middle" fill="#777" transform="rotate(-90, 16, 245)">
+                      <text x="16" y="350" fontSize="8" textAnchor="middle" fill="#777" transform="rotate(-90, 16, 350)">
                         = Sensibilidad = Recall
                       </text>
 
