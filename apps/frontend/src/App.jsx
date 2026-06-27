@@ -1325,6 +1325,27 @@ export default function App() {
       </Paper>
             </Box>
           </Container>
+          <Box
+            component="footer"
+            sx={{
+              py: 2,
+              textAlign: "center",
+              borderTop: "1px solid",
+              borderColor: "divider",
+              bgcolor: "background.paper",
+            }}
+          >
+            <Typography variant="body2" color="text.secondary">
+              <a
+                href="https://github.com/VECTORG99/DataGestor"
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{ color: "inherit", textDecoration: "none" }}
+              >
+                VECTORG99/DataGestor
+              </a>
+            </Typography>
+          </Box>
           <Snackbar open={Boolean(toast)} autoHideDuration={4000} onClose={() => setToast(null)}>
             <Alert severity={toast?.severity || "info"} onClose={() => setToast(null)} sx={{ width: "100%" }}>
               {toast?.message}
