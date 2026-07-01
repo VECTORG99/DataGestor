@@ -25,7 +25,7 @@
       "stage": "agregacion",
       "label": "Agregación",
       "description": "Los registros LSOA se agrupan por (borough, major_category, minor_category, year, month) y se suman los valores",
-      "records_out": "85,728",
+      "records_out": "111,531",
       "note": "Cada fila ya no es un LSOA individual, sino la suma total de crímenes para ese grupo"
     },
     {
